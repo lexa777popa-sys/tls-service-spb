@@ -134,7 +134,8 @@ function renderBookings(): void {
 
   bookingList.innerHTML = items
     .map((item) => {
-      const service = item.service || kindTitle(item.kind);
+      const direction = kindTitle(item.kind);
+      const service = item.service.trim() || "Не указана — уточнить при звонке";
       const assignee = item.assignee ? ` · ${escapeHtml(item.assignee)}` : "";
       const actions = inTrash
         ? [
@@ -168,8 +169,9 @@ function renderBookings(): void {
             <time>${escapeHtml(new Date(when).toLocaleString("ru-RU"))}</time>
           </header>
           <h2>${escapeHtml(item.brand)} ${escapeHtml(item.model)}</h2>
-          <p>${escapeHtml(service)}</p>
           <dl>
+            <div><dt>Направление</dt><dd>${escapeHtml(direction)}</dd></div>
+            <div><dt>Услуга</dt><dd>${escapeHtml(service)}</dd></div>
             <div><dt>Когда</dt><dd>${escapeHtml(formatBookingDate(item.date))} · ${escapeHtml(item.time)}</dd></div>
             <div><dt>Клиент</dt><dd>${escapeHtml(item.name)} · <a href="tel:${escapeHtml(item.phone)}">${escapeHtml(item.phone)}</a></dd></div>
             ${item.mileage ? `<div><dt>Пробег</dt><dd>${escapeHtml(item.mileage)} км</dd></div>` : ""}
