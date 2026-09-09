@@ -1015,6 +1015,7 @@ const server = createServer(async (req, res) => {
       json(res, 200, {
         ok: true,
         postgres: Boolean(pgPool),
+        databaseUrlConfigured: Boolean(DATABASE_URL),
         bookings: db.bookings.filter((b) => !b.trashedAt).length,
       });
       return;
