@@ -15,8 +15,8 @@ services:
       - key: ADMIN_LOGIN
         value: admin
       - key: ADMIN_PASSWORD
-        generateValue: true
+        value: admin123
       - key: OPERATOR_LOGIN
         value: operator
       - key: OPERATOR_PASSWORD
-        generateValue: true
+        value: operator123

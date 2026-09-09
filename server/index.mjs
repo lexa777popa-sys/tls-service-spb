@@ -77,6 +77,25 @@ function tokenHash(token) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+function upsertStaffUser(login, name, role, password) {
+  const hashed = hashPassword(password);
+  const existing = db.users.find((u) => u.login === login);
+  if (existing) {
+    existing.name = name;
+    existing.role = role;
+    existing.salt = hashed.salt;
+    existing.passwordHash = hashed.passwordHash;
+    return;
+  }
+  db.users.push({
+    login,
+    name,
+    role,
+    salt: hashed.salt,
+    passwordHash: hashed.passwordHash,
+  });
+}
+
 async function ensureDb() {
   await mkdir(DATA_DIR, { recursive: true });
   try {
@@ -89,41 +108,23 @@ async function ensureDb() {
       nextBookingId: Number(parsed.nextBookingId) || 1,
     };
   } catch {
-    const adminLogin = process.env.ADMIN_LOGIN || "admin";
-    const operatorLogin = process.env.OPERATOR_LOGIN || "operator";
-    const adminPassword = process.env.ADMIN_PASSWORD || randomBytes(9).toString("base64url");
-    const operatorPassword = process.env.OPERATOR_PASSWORD || randomBytes(9).toString("base64url");
-
-    const admin = hashPassword(adminPassword);
-    const operator = hashPassword(operatorPassword);
     db = {
-      users: [
-        {
-          login: adminLogin,
-          name: "Администратор",
-          role: "admin",
-          salt: admin.salt,
-          passwordHash: admin.passwordHash,
-        },
-        {
-          login: operatorLogin,
-          name: "Оператор",
-          role: "operator",
-          salt: operator.salt,
-          passwordHash: operator.passwordHash,
-        },
-      ],
+      users: [],
       sessions: [],
       bookings: [],
       nextBookingId: 1,
     };
-    await saveDb();
-
-    console.log("=== Первичные доступы (сохрани из логов Render) ===");
-    console.log(`admin:    ${adminLogin} / ${adminPassword}`);
-    console.log(`operator: ${operatorLogin} / ${operatorPassword}`);
-    console.log("===================================================");
   }
+
+  const adminLogin = process.env.ADMIN_LOGIN || "admin";
+  const operatorLogin = process.env.OPERATOR_LOGIN || "operator";
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const operatorPassword = process.env.OPERATOR_PASSWORD || "operator123";
+
+  upsertStaffUser(adminLogin, "Администратор", "admin", adminPassword);
+  upsertStaffUser(operatorLogin, "Оператор", "operator", operatorPassword);
+  db.sessions = [];
+  await saveDb();
 }
 
 async function saveDb() {
