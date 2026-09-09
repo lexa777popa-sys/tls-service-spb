@@ -89,19 +89,10 @@ async function ensureDb() {
       nextBookingId: Number(parsed.nextBookingId) || 1,
     };
   } catch {
-    const isProd = process.env.NODE_ENV === "production";
     const adminLogin = process.env.ADMIN_LOGIN || "admin";
     const operatorLogin = process.env.OPERATOR_LOGIN || "operator";
-    const adminPassword =
-      process.env.ADMIN_PASSWORD || (isProd ? "" : randomBytes(9).toString("base64url"));
-    const operatorPassword =
-      process.env.OPERATOR_PASSWORD || (isProd ? "" : randomBytes(9).toString("base64url"));
-
-    if (!adminPassword || !operatorPassword) {
-      throw new Error(
-        "Задайте ADMIN_PASSWORD и OPERATOR_PASSWORD в окружении перед первым запуском в production.",
-      );
-    }
+    const adminPassword = process.env.ADMIN_PASSWORD || randomBytes(9).toString("base64url");
+    const operatorPassword = process.env.OPERATOR_PASSWORD || randomBytes(9).toString("base64url");
 
     const admin = hashPassword(adminPassword);
     const operator = hashPassword(operatorPassword);
@@ -128,12 +119,10 @@ async function ensureDb() {
     };
     await saveDb();
 
-    if (!process.env.ADMIN_PASSWORD || !process.env.OPERATOR_PASSWORD) {
-      console.log("=== Первичные доступы (сохрани и никому не свети) ===");
-      console.log(`admin:    ${adminLogin} / ${adminPassword}`);
-      console.log(`operator: ${operatorLogin} / ${operatorPassword}`);
-      console.log("=====================================================");
-    }
+    console.log("=== Первичные доступы (сохрани из логов Render) ===");
+    console.log(`admin:    ${adminLogin} / ${adminPassword}`);
+    console.log(`operator: ${operatorLogin} / ${operatorPassword}`);
+    console.log("===================================================");
   }
 }
 
