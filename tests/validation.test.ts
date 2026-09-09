@@ -68,9 +68,23 @@ describe("validateBooking", () => {
     }
   });
 
-  it("проверяет обязательные поля", () => {
+  it("проверяет обязательные поля по одному и указывает конкретное", () => {
     const result = validateBooking({ ...base, model: "", name: "" }, now);
     expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.field).toBe("model");
+      expect(result.message.toLowerCase()).toContain("модель");
+      expect(result.message.toLowerCase()).not.toContain("имя");
+    }
+  });
+
+  it("отдельно указывает на имя, если остальные поля заполнены", () => {
+    const result = validateBooking({ ...base, name: "" }, now);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.field).toBe("name");
+      expect(result.message.toLowerCase()).toContain("имя");
+    }
   });
 
   it("требует марку, но принимает любую введённую", () => {

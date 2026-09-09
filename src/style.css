@@ -889,6 +889,16 @@ textarea:focus-visible {
   font-size: 14px;
 }
 
+.form :is(input, select, textarea).is-invalid {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+.form input[type="checkbox"].is-invalid {
+  outline: 2px solid var(--danger);
+  outline-offset: 3px;
+}
+
 .form-fine {
   margin: 14px 0 0;
   color: var(--ink-3);

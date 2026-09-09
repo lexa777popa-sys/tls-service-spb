@@ -24,6 +24,7 @@ import {
   sanitizeDateInput,
   validateBooking,
   type Booking,
+  type BookingField,
   type BookingInput,
 } from "./validation";
 import "./style.css";
@@ -275,9 +276,39 @@ function initBookingForm(): void {
   initDateField(dateInput);
   if (consent instanceof HTMLInputElement) consent.checked = false;
 
+  const clearFieldError = () => {
+    form.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+  };
+
+  const showFieldError = (field: BookingField, message: string) => {
+    clearFieldError();
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+
+    const control = form.elements.namedItem(field);
+    const target =
+      control instanceof RadioNodeList
+        ? Array.from(control).find((el): el is HTMLElement => el instanceof HTMLElement)
+        : control instanceof HTMLElement
+          ? control
+          : null;
+
+    if (target) {
+      target.classList.add("is-invalid");
+      if ("focus" in target && typeof target.focus === "function") {
+        target.focus();
+      }
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  };
+
+  form.addEventListener("input", clearFieldError);
+  form.addEventListener("change", clearFieldError);
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     errorEl.hidden = true;
+    clearFieldError();
 
     const fd = new FormData(form);
     const data: BookingInput = {
@@ -296,8 +327,7 @@ function initBookingForm(): void {
 
     const result = validateBooking(data);
     if (!result.ok) {
-      errorEl.textContent = result.message;
-      errorEl.hidden = false;
+      showFieldError(result.field, result.message);
       return;
     }
 

@@ -121,38 +121,55 @@ export function bookingDoneMessage(
 }
 
 /** Успешная проверка отдаёт дату в ISO — её и сохраняем. */
-export type BookingCheck = { ok: true; date: string } | { ok: false; message: string };
+export type BookingField =
+  | "consent"
+  | "brand"
+  | "model"
+  | "date"
+  | "time"
+  | "name"
+  | "phone";
+
+export type BookingCheck =
+  | { ok: true; date: string }
+  | { ok: false; message: string; field: BookingField };
 
 export function validateBooking(data: BookingInput, now = new Date()): BookingCheck {
-  if (!data.consent) {
-    return {
-      ok: false,
-      message: "Чтобы отправить заявку, отметьте согласие на обработку персональных данных.",
-    };
+  if (!data.brand?.trim()) {
+    return { ok: false, field: "brand", message: "Укажите марку автомобиля." };
   }
-  if (
-    !data.brand?.trim() ||
-    !data.model?.trim() ||
-    !data.date ||
-    !data.time ||
-    !data.name?.trim()
-  ) {
-    return {
-      ok: false,
-      message: "Заполните марку, модель, дату, время и имя.",
-    };
+  if (!data.model?.trim()) {
+    return { ok: false, field: "model", message: "Укажите модель автомобиля." };
   }
-  if (!phoneOk(data.phone ?? "")) {
-    return {
-      ok: false,
-      message: "Проверьте телефон — нужно не меньше 10 цифр.",
-    };
+  if (!String(data.date || "").trim()) {
+    return { ok: false, field: "date", message: "Укажите дату визита — 4 цифры ДДММ, например 2409." };
   }
   const date = parseBookingDate(data.date, now);
   if (!date) {
     return {
       ok: false,
-      message: "Укажите день и месяц 4 цифрами: ДДММ — день 01–31, месяц 01–12. Например, 2409.",
+      field: "date",
+      message: "Дата указана неверно. Нужны 4 цифры ДДММ: день 01–31, месяц 01–12. Например, 2409.",
+    };
+  }
+  if (!data.time?.trim()) {
+    return { ok: false, field: "time", message: "Выберите удобное время визита." };
+  }
+  if (!data.name?.trim()) {
+    return { ok: false, field: "name", message: "Укажите ваше имя." };
+  }
+  if (!phoneOk(data.phone ?? "")) {
+    return {
+      ok: false,
+      field: "phone",
+      message: "Проверьте телефон — нужно не меньше 10 цифр.",
+    };
+  }
+  if (!data.consent) {
+    return {
+      ok: false,
+      field: "consent",
+      message: "Чтобы отправить заявку, отметьте согласие на обработку персональных данных.",
     };
   }
   return { ok: true, date };
