@@ -4,6 +4,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import pg from "pg";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -12,10 +13,14 @@ const DIST_DIR = join(ROOT, "dist");
 const DATA_DIR = process.env.DATA_DIR || join(ROOT, "data");
 const DB_PATH = join(DATA_DIR, "queue.json");
 const BACKUP_DIR = join(DATA_DIR, "backups");
+const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
 const MAX_BACKUPS = 40;
 const PORT = Number(process.env.PORT || 8788);
 const HOST = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 const SERVE_STATIC = process.env.SERVE_STATIC === "1" || process.env.NODE_ENV === "production";
+
+/** @type {import('pg').Pool | null} */
+let pgPool = null;
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -102,32 +107,88 @@ function upsertStaffUser(login, name, role, password) {
   });
 }
 
+async function initPostgres() {
+  if (!DATABASE_URL) return;
+  pgPool = new pg.Pool({
+    connectionString: DATABASE_URL,
+    ssl: /localhost|127\.0\.0\.1/i.test(DATABASE_URL)
+      ? false
+      : { rejectUnauthorized: false },
+  });
+  await pgPool.query(`
+    CREATE TABLE IF NOT EXISTS app_state (
+      id INTEGER PRIMARY KEY,
+      payload JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  console.log("Postgres persistence enabled");
+}
+
+function normalizeDbState(parsed) {
+  return {
+    users: Array.isArray(parsed?.users) ? parsed.users : [],
+    sessions: Array.isArray(parsed?.sessions) ? parsed.sessions : [],
+    bookings: Array.isArray(parsed?.bookings) ? parsed.bookings : [],
+    nextBookingId: Number(parsed?.nextBookingId) || 1,
+  };
+}
+
+async function loadFromPostgres() {
+  if (!pgPool) return null;
+  const { rows } = await pgPool.query("SELECT payload FROM app_state WHERE id = 1");
+  if (!rows.length) return null;
+  return normalizeDbState(rows[0].payload);
+}
+
+async function saveToPostgres() {
+  if (!pgPool) return;
+  await pgPool.query(
+    `INSERT INTO app_state (id, payload, updated_at)
+     VALUES (1, $1::jsonb, NOW())
+     ON CONFLICT (id) DO UPDATE
+     SET payload = EXCLUDED.payload, updated_at = NOW()`,
+    [JSON.stringify(db)],
+  );
+}
+
 async function ensureDb() {
   await mkdir(DATA_DIR, { recursive: true });
   await mkdir(BACKUP_DIR, { recursive: true });
+  await initPostgres();
 
   let loaded = false;
+
+  // 1) Postgres переживает перезапуски free-сервиса Render — грузим оттуда в первую очередь.
   try {
-    const raw = await readFile(DB_PATH, "utf8");
-    const parsed = JSON.parse(raw);
-    db = {
-      users: Array.isArray(parsed.users) ? parsed.users : [],
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-      bookings: Array.isArray(parsed.bookings) ? parsed.bookings : [],
-      nextBookingId: Number(parsed.nextBookingId) || 1,
-    };
-    loaded = true;
-  } catch {
-    loaded = false;
+    const fromPg = await loadFromPostgres();
+    if (fromPg) {
+      db = fromPg;
+      loaded = true;
+      console.log(`Loaded ${db.bookings.length} booking(s) from Postgres`);
+    }
+  } catch (error) {
+    console.error("Postgres load failed:", error);
   }
 
-  // Если основная база пустая/пропала — поднимаем заявки из последнего бэкапа на диске.
+  // 2) Локальный файл (удобно для ПК / как запас).
+  if (!loaded) {
+    try {
+      const raw = await readFile(DB_PATH, "utf8");
+      db = normalizeDbState(JSON.parse(raw));
+      loaded = true;
+      console.log(`Loaded ${db.bookings.length} booking(s) from file`);
+    } catch {
+      loaded = false;
+    }
+  }
+
+  // 3) Если основная база пустая/пропала — поднимаем заявки из последнего бэкапа на диске.
   if (!loaded || !db.bookings.length) {
     const recovered = await tryRecoverBookingsFromBackup();
     if (recovered) {
-      console.log(
-        `Recovered ${db.bookings.length} booking(s) from backup ${recovered}`,
-      );
+      console.log(`Recovered ${db.bookings.length} booking(s) from backup ${recovered}`);
+      loaded = true;
     } else if (!loaded) {
       db = {
         users: [],
@@ -217,6 +278,15 @@ async function saveDb(options = {}) {
   const forceBackup = Boolean(options.forceBackup);
   await mkdir(DATA_DIR, { recursive: true });
   await writeFile(DB_PATH, JSON.stringify(db, null, 2), "utf8");
+
+  if (pgPool) {
+    try {
+      await saveToPostgres();
+    } catch (error) {
+      console.error("Postgres save failed:", error);
+      throw error;
+    }
+  }
 
   const due = forceBackup || Date.now() - lastBackupAt > 60_000;
   if (due) {
@@ -788,7 +858,11 @@ const server = createServer(async (req, res) => {
     const method = req.method || "GET";
 
     if (method === "GET" && pathname === "/api/health") {
-      json(res, 200, { ok: true });
+      json(res, 200, {
+        ok: true,
+        postgres: Boolean(pgPool),
+        bookings: db.bookings.filter((b) => !b.trashedAt).length,
+      });
       return;
     }
     if (method === "POST" && pathname === "/api/auth/login") {
@@ -913,5 +987,6 @@ await ensureDb();
 server.listen(PORT, HOST, () => {
   console.log(`TLS Service listening on http://${HOST}:${PORT}`);
   console.log(`Data directory: ${DATA_DIR}`);
+  console.log(`Postgres: ${pgPool ? "on" : "off (file only)"}`);
   if (SERVE_STATIC) console.log(`Static files from ${DIST_DIR}`);
 });
