@@ -86,6 +86,25 @@
           <button type="button" class="btn btn-ghost" id="empty-trash-btn">Очистить корзину</button>
         </div>
 
+        <section class="backup-bar" aria-label="Резервные копии">
+          <div>
+            <p class="backup-title">Сохранить заявки на этот компьютер</p>
+            <p class="backup-lead">
+              Скачайте файл на жёсткий диск. Если на сервере заявки пропадут — загрузите этот файл
+              обратно (только админ).
+            </p>
+          </div>
+          <div class="backup-actions">
+            <button type="button" class="btn btn-accent" id="backup-download-btn">
+              Скачать на ПК
+            </button>
+            <label class="btn btn-ghost backup-upload">
+              Восстановить из файла
+              <input id="backup-restore-input" type="file" accept="application/json,.json" hidden />
+            </label>
+          </div>
+        </section>
+
         <p class="form-error" id="app-error" hidden></p>
         <p id="empty-state" class="admin-empty" hidden>Заявок пока нет.</p>
         <ul id="booking-list" class="admin-list"></ul>

@@ -7,11 +7,20 @@ services:
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
+    # На free-плане постоянного диска нет: заявки сохраняйте на ПК
+    # кнопкой «Скачать на ПК» или scripts/backup-to-pc.ps1.
+    # Когда перейдёте на Starter+, раскомментируйте disk и DATA_DIR:
+    # disk:
+    #   name: tls-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: HOST
         value: 0.0.0.0
+      # - key: DATA_DIR
+      #   value: /var/data
       - key: ADMIN_LOGIN
         value: admin
       - key: ADMIN_PASSWORD

@@ -172,3 +172,34 @@ export function createStaff(
     body: JSON.stringify(body),
   });
 }
+
+export async function downloadBackup(token: string): Promise<void> {
+  const response = await fetch("/api/backup/download", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const data = (await response.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error || `Ошибка ${response.status}`);
+  }
+  const blob = await response.blob();
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `tls-bookings-${stamp}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function restoreBackup(
+  token: string,
+  payload: { bookings: RemoteBooking[]; nextBookingId?: number },
+): Promise<{ ok: boolean; restored: number }> {
+  return request("/api/backup/restore", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+}

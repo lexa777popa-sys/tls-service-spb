@@ -1,6 +1,7 @@
 node_modules
 dist
 data/*.json
+data/backups/
 .DS_Store
 *.local
 .env

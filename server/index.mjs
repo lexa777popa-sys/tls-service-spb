@@ -1,15 +1,18 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { createReadStream, existsSync, statSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const DIST_DIR = join(ROOT, "dist");
-const DATA_DIR = join(ROOT, "data");
+/** На Render с диском: DATA_DIR=/var/data. Локально — папка data в проекте (это уже ваш ПК). */
+const DATA_DIR = process.env.DATA_DIR || join(ROOT, "data");
 const DB_PATH = join(DATA_DIR, "queue.json");
+const BACKUP_DIR = join(DATA_DIR, "backups");
+const MAX_BACKUPS = 40;
 const PORT = Number(process.env.PORT || 8788);
 const HOST = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 const SERVE_STATIC = process.env.SERVE_STATIC === "1" || process.env.NODE_ENV === "production";
@@ -101,6 +104,9 @@ function upsertStaffUser(login, name, role, password) {
 
 async function ensureDb() {
   await mkdir(DATA_DIR, { recursive: true });
+  await mkdir(BACKUP_DIR, { recursive: true });
+
+  let loaded = false;
   try {
     const raw = await readFile(DB_PATH, "utf8");
     const parsed = JSON.parse(raw);
@@ -110,13 +116,26 @@ async function ensureDb() {
       bookings: Array.isArray(parsed.bookings) ? parsed.bookings : [],
       nextBookingId: Number(parsed.nextBookingId) || 1,
     };
+    loaded = true;
   } catch {
-    db = {
-      users: [],
-      sessions: [],
-      bookings: [],
-      nextBookingId: 1,
-    };
+    loaded = false;
+  }
+
+  // Если основная база пустая/пропала — поднимаем заявки из последнего бэкапа на диске.
+  if (!loaded || !db.bookings.length) {
+    const recovered = await tryRecoverBookingsFromBackup();
+    if (recovered) {
+      console.log(
+        `Recovered ${db.bookings.length} booking(s) from backup ${recovered}`,
+      );
+    } else if (!loaded) {
+      db = {
+        users: [],
+        sessions: [],
+        bookings: [],
+        nextBookingId: 1,
+      };
+    }
   }
 
   const adminLogin = process.env.ADMIN_LOGIN || "admin";
@@ -127,12 +146,98 @@ async function ensureDb() {
   upsertStaffUser(adminLogin, "Администратор", "admin", adminPassword);
   upsertStaffUser(operatorLogin, "Оператор", "operator", operatorPassword);
   db.sessions = [];
-  await saveDb();
+  await saveDb({ forceBackup: true });
 }
 
-async function saveDb() {
+let lastBackupAt = 0;
+
+function stampName() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+async function listBackupFiles() {
+  await mkdir(BACKUP_DIR, { recursive: true });
+  const names = await readdir(BACKUP_DIR);
+  return names
+    .filter((name) => /^queue-.+\.json$/i.test(name))
+    .sort()
+    .reverse();
+}
+
+async function pruneBackups() {
+  const names = await listBackupFiles();
+  for (const name of names.slice(MAX_BACKUPS)) {
+    await unlink(join(BACKUP_DIR, name)).catch(() => {});
+  }
+}
+
+async function writeBackupCopy() {
+  await mkdir(BACKUP_DIR, { recursive: true });
+  const target = join(BACKUP_DIR, `queue-${stampName()}.json`);
+  if (existsSync(DB_PATH)) {
+    await copyFile(DB_PATH, target);
+  } else {
+    await writeFile(target, JSON.stringify(db, null, 2), "utf8");
+  }
+  lastBackupAt = Date.now();
+  await pruneBackups();
+  return target;
+}
+
+async function tryRecoverBookingsFromBackup() {
+  const names = await listBackupFiles();
+  for (const name of names) {
+    try {
+      const raw = await readFile(join(BACKUP_DIR, name), "utf8");
+      const parsed = JSON.parse(raw);
+      const bookings = Array.isArray(parsed.bookings) ? parsed.bookings : [];
+      if (!bookings.length) continue;
+      const maxId = bookings.reduce((max, b) => Math.max(max, Number(b.id) || 0), 0);
+      db.bookings = bookings;
+      db.nextBookingId = Math.max(Number(parsed.nextBookingId) || 1, maxId + 1);
+      return name;
+    } catch {
+      /* next backup */
+    }
+  }
+  return null;
+}
+
+function exportBookingsPayload() {
+  return {
+    version: 1,
+    kind: "tls-bookings-backup",
+    exportedAt: new Date().toISOString(),
+    bookings: db.bookings,
+    nextBookingId: db.nextBookingId,
+  };
+}
+
+async function saveDb(options = {}) {
+  const forceBackup = Boolean(options.forceBackup);
   await mkdir(DATA_DIR, { recursive: true });
   await writeFile(DB_PATH, JSON.stringify(db, null, 2), "utf8");
+
+  const due = forceBackup || Date.now() - lastBackupAt > 60_000;
+  if (due) {
+    try {
+      await writeBackupCopy();
+    } catch (error) {
+      console.error("Backup failed:", error);
+    }
+  }
+}
+
+function sendDownload(res, filename, payload) {
+  const body = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+  const buffer = Buffer.from(body, "utf8");
+  res.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Length": buffer.length,
+    "Cache-Control": "no-store",
+  });
+  res.end(buffer);
 }
 
 function json(res, status, body) {
@@ -480,7 +585,7 @@ async function handleTrashBooking(req, res, id) {
   const now = new Date().toISOString();
   booking.trashedAt = now;
   booking.updatedAt = now;
-  await saveDb();
+  await saveDb({ forceBackup: true });
   broadcastBookings();
   json(res, 200, { booking });
 }
@@ -519,7 +624,7 @@ async function handlePurgeBooking(req, res, id) {
   }
 
   db.bookings.splice(index, 1);
-  await saveDb();
+  await saveDb({ forceBackup: true });
   broadcastBookings();
   json(res, 200, { ok: true });
 }
@@ -533,9 +638,80 @@ async function handleEmptyTrash(req, res) {
 
   const before = db.bookings.length;
   db.bookings = db.bookings.filter((b) => !b.trashedAt);
-  await saveDb();
+  await saveDb({ forceBackup: true });
   broadcastBookings();
   json(res, 200, { ok: true, removed: before - db.bookings.length });
+}
+
+function handleDownloadBackup(req, res) {
+  const auth = getAuth(req);
+  if (!auth) {
+    json(res, 401, { error: "Нужен вход" });
+    return;
+  }
+  const filename = `tls-bookings-${stampName()}.json`;
+  sendDownload(res, filename, exportBookingsPayload());
+}
+
+async function handleListBackups(req, res) {
+  const auth = getAuth(req);
+  if (!auth) {
+    json(res, 401, { error: "Нужен вход" });
+    return;
+  }
+  const names = await listBackupFiles();
+  json(res, 200, {
+    backups: names.slice(0, 20).map((name) => ({ name })),
+    dataDir: DATA_DIR,
+    bookingCount: db.bookings.length,
+  });
+}
+
+async function handleRestoreBackup(req, res) {
+  const auth = getAuth(req);
+  if (!auth) {
+    json(res, 401, { error: "Нужен вход" });
+    return;
+  }
+  if (auth.user.role !== "admin") {
+    json(res, 403, { error: "Восстановление только для администратора" });
+    return;
+  }
+
+  const body = await readBody(req);
+  const bookings = Array.isArray(body.bookings) ? body.bookings : null;
+  if (!bookings) {
+    json(res, 400, { error: "В файле нет списка заявок (bookings)" });
+    return;
+  }
+
+  await writeBackupCopy();
+  const maxId = bookings.reduce((max, b) => Math.max(max, Number(b?.id) || 0), 0);
+  db.bookings = bookings.map((item) => ({
+    id: Number(item.id) || 0,
+    kind: String(item.kind || "repair"),
+    brand: String(item.brand || ""),
+    model: String(item.model || ""),
+    mileage: String(item.mileage || ""),
+    service: String(item.service || ""),
+    date: String(item.date || ""),
+    time: String(item.time || ""),
+    name: String(item.name || ""),
+    phone: String(item.phone || ""),
+    note: String(item.note || ""),
+    status: STATUSES.has(String(item.status)) ? String(item.status) : "new",
+    assignee: item.assignee ? String(item.assignee) : null,
+    returnReason: item.returnReason ? String(item.returnReason) : null,
+    returnedBy: item.returnedBy ? String(item.returnedBy) : null,
+    returnedAt: item.returnedAt ? String(item.returnedAt) : null,
+    createdAt: String(item.createdAt || new Date().toISOString()),
+    updatedAt: String(item.updatedAt || new Date().toISOString()),
+    trashedAt: item.trashedAt ? String(item.trashedAt) : null,
+  }));
+  db.nextBookingId = Math.max(Number(body.nextBookingId) || 1, maxId + 1);
+  await saveDb({ forceBackup: true });
+  broadcastBookings();
+  json(res, 200, { ok: true, restored: db.bookings.length });
 }
 
 async function handleCreateStaff(req, res) {
@@ -678,6 +854,18 @@ const server = createServer(async (req, res) => {
       await handleCreateStaff(req, res);
       return;
     }
+    if (method === "GET" && pathname === "/api/backup/download") {
+      handleDownloadBackup(req, res);
+      return;
+    }
+    if (method === "GET" && pathname === "/api/backup") {
+      await handleListBackups(req, res);
+      return;
+    }
+    if (method === "POST" && pathname === "/api/backup/restore") {
+      await handleRestoreBackup(req, res);
+      return;
+    }
 
     if (SERVE_STATIC && (method === "GET" || method === "HEAD")) {
       if (await tryServeStatic(req, res, pathname)) return;
@@ -724,5 +912,6 @@ async function tryServeStatic(req, res, pathname) {
 await ensureDb();
 server.listen(PORT, HOST, () => {
   console.log(`TLS Service listening on http://${HOST}:${PORT}`);
+  console.log(`Data directory: ${DATA_DIR}`);
   if (SERVE_STATIC) console.log(`Static files from ${DIST_DIR}`);
 });

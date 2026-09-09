@@ -10,6 +10,7 @@ import "@fontsource/manrope/700.css";
 import {
   createStaff,
   deleteBooking,
+  downloadBackup,
   emptyTrash,
   fetchBookings,
   fetchMe,
@@ -18,6 +19,7 @@ import {
   login as apiLogin,
   logout as apiLogout,
   purgeBooking,
+  restoreBackup,
   restoreBooking,
   updateBooking,
   type BookingStatus,
@@ -89,6 +91,10 @@ function setAuthed(user: StaffUser): void {
   if (appView) appView.hidden = false;
   if (whoami) whoami.textContent = `${user.name} · ${user.login}`;
   if (staffSection) staffSection.hidden = user.role !== "admin";
+  const restoreLabel = document.querySelector(".backup-upload");
+  if (restoreLabel instanceof HTMLElement) {
+    restoreLabel.hidden = user.role !== "admin";
+  }
 }
 
 function setGuest(): void {
@@ -346,6 +352,47 @@ document.getElementById("empty-trash-btn")?.addEventListener("click", async () =
     await refreshBookings();
   } catch (error) {
     showError(appError, error instanceof Error ? error.message : "Не удалось очистить");
+  }
+});
+
+document.getElementById("backup-download-btn")?.addEventListener("click", async () => {
+  showError(appError, "");
+  try {
+    await downloadBackup(token);
+  } catch (error) {
+    showError(appError, error instanceof Error ? error.message : "Не удалось скачать копию");
+  }
+});
+
+document.getElementById("backup-restore-input")?.addEventListener("change", async (event) => {
+  showError(appError, "");
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || !input.files?.length) return;
+  const file = input.files[0];
+  input.value = "";
+  if (!window.confirm(`Восстановить заявки из файла «${file.name}»? Текущий список на сервере будет заменён.`)) {
+    return;
+  }
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text) as {
+      bookings?: RemoteBooking[];
+      nextBookingId?: number;
+    };
+    if (!Array.isArray(parsed.bookings)) {
+      throw new Error("В файле нет списка заявок");
+    }
+    const result = await restoreBackup(token, {
+      bookings: parsed.bookings,
+      nextBookingId: parsed.nextBookingId,
+    });
+    await refreshBookings();
+    window.alert(`Восстановлено заявок: ${result.restored}`);
+  } catch (error) {
+    showError(
+      appError,
+      error instanceof Error ? error.message : "Не удалось восстановить из файла",
+    );
   }
 });
 
