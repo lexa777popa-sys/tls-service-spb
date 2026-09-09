@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: tls-service-spb
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: ADMIN_LOGIN
+        value: admin
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: OPERATOR_LOGIN
+        value: operator
+      - key: OPERATOR_PASSWORD
+        generateValue: true
+    disk:
+      name: tls-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
