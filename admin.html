@@ -30,6 +30,29 @@
       </div>
     </section>
 
+    <dialog id="return-reason-dialog" class="admin-dialog">
+      <form id="return-reason-form" class="admin-dialog-form" novalidate>
+        <h2>Вернуть в новые</h2>
+        <p>Напишите, почему заявку возвращают в очередь. Без объяснения вернуть нельзя.</p>
+        <label>
+          Причина возврата
+          <textarea
+            name="reason"
+            rows="4"
+            required
+            minlength="5"
+            maxlength="500"
+            placeholder="Например: клиент перенёс дату, нужно согласовать запчасть…"
+          ></textarea>
+        </label>
+        <p class="form-error" id="return-reason-error" hidden></p>
+        <div class="admin-dialog-actions">
+          <button type="submit" class="btn btn-accent" value="confirm">Вернуть в новые</button>
+          <button type="button" class="btn btn-ghost" id="return-reason-cancel">Отмена</button>
+        </div>
+      </form>
+    </dialog>
+
     <div id="app-view" hidden>
       <header class="admin-nav">
         <div class="admin-nav-brand">

@@ -48,6 +48,9 @@ const STATUSES = new Set(["new", "in_progress", "done", "cancelled"]);
  *  note: string;
  *  status: "new" | "in_progress" | "done" | "cancelled";
  *  assignee: string | null;
+ *  returnReason: string | null;
+ *  returnedBy: string | null;
+ *  returnedAt: string | null;
  *  createdAt: string;
  *  updatedAt: string;
  *  trashedAt?: string | null;
@@ -270,6 +273,9 @@ async function handleCreateBooking(req, res) {
     note: String(body.note || "").trim(),
     status: "new",
     assignee: null,
+    returnReason: null,
+    returnedBy: null,
+    returnedAt: null,
     createdAt: now,
     updatedAt: now,
     trashedAt: null,
@@ -330,7 +336,17 @@ async function handlePatchBooking(req, res, id) {
       booking.assignee = auth.user.login;
     }
     if (status === "new") {
+      const reason = String(body.returnReason || "").trim();
+      if (reason.length < 5) {
+        json(res, 400, {
+          error: "Чтобы вернуть заявку в новые, напишите причину (минимум 5 символов)",
+        });
+        return;
+      }
       booking.assignee = null;
+      booking.returnReason = reason;
+      booking.returnedBy = auth.user.login;
+      booking.returnedAt = new Date().toISOString();
     }
   }
   if (body.take === true) {

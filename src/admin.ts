@@ -43,11 +43,16 @@ const staffSection = document.getElementById("staff-panel");
 const staffForm = document.getElementById("staff-form");
 const staffError = document.getElementById("staff-error");
 const staffList = document.getElementById("staff-list");
+const returnDialog = document.getElementById("return-reason-dialog") as HTMLDialogElement | null;
+const returnForm = document.getElementById("return-reason-form") as HTMLFormElement | null;
+const returnError = document.getElementById("return-reason-error");
+const returnCancel = document.getElementById("return-reason-cancel");
 
 let token = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser: StaffUser | null = null;
 let bookings: RemoteBooking[] = [];
 let trash: RemoteBooking[] = [];
+let returnReasonResolver: ((value: string | null) => void) | null = null;
 let filter: "all" | "trash" | BookingStatus = "all";
 
 function showError(el: HTMLElement | null, message: string): void {
@@ -113,6 +118,29 @@ async function refreshStaff(): Promise<void> {
     .join("");
 }
 
+function askReturnReason(): Promise<string | null> {
+  if (!returnDialog || !returnForm) {
+    const typed = window.prompt("Почему возвращаете заявку в новые?");
+    const reason = typed?.trim() || "";
+    return Promise.resolve(reason.length >= 5 ? reason : null);
+  }
+
+  returnForm.reset();
+  showError(returnError, "");
+  returnDialog.showModal();
+
+  return new Promise((resolve) => {
+    returnReasonResolver = resolve;
+  });
+}
+
+function finishReturnReason(reason: string | null): void {
+  returnDialog?.close();
+  const resolve = returnReasonResolver;
+  returnReasonResolver = null;
+  resolve?.(reason);
+}
+
 function renderBookings(): void {
   if (!bookingList) return;
   const inTrash = filter === "trash";
@@ -176,6 +204,19 @@ function renderBookings(): void {
             <div><dt>Клиент</dt><dd>${escapeHtml(item.name)} · <a href="tel:${escapeHtml(item.phone)}">${escapeHtml(item.phone)}</a></dd></div>
             ${item.mileage ? `<div><dt>Пробег</dt><dd>${escapeHtml(item.mileage)} км</dd></div>` : ""}
             ${item.note ? `<div><dt>Комментарий</dt><dd>${escapeHtml(item.note)}</dd></div>` : ""}
+            ${
+              item.returnReason
+                ? `<div><dt>Причина возврата</dt><dd>${escapeHtml(item.returnReason)}${
+                    item.returnedBy
+                      ? ` <em>(${escapeHtml(item.returnedBy)}${
+                          item.returnedAt
+                            ? `, ${escapeHtml(new Date(item.returnedAt).toLocaleString("ru-RU"))}`
+                            : ""
+                        })</em>`
+                      : ""
+                  }</dd></div>`
+                : ""
+            }
           </dl>
           <div class="booking-actions">${actions}</div>
         </article>
@@ -269,7 +310,17 @@ bookingList?.addEventListener("click", async (event) => {
     const statusBtn = target.closest("[data-status]");
     if (statusBtn instanceof HTMLElement) {
       const next = statusBtn.getAttribute("data-next") as BookingStatus;
-      await updateBooking(token, Number(statusBtn.getAttribute("data-status")), { status: next });
+      const id = Number(statusBtn.getAttribute("data-status"));
+      if (next === "new") {
+        const reason = await askReturnReason();
+        if (!reason) {
+          showError(appError, "Чтобы вернуть заявку в новые, нужно написать причину");
+          return;
+        }
+        await updateBooking(token, id, { status: next, returnReason: reason });
+      } else {
+        await updateBooking(token, id, { status: next });
+      }
       await refreshBookings();
       return;
     }
@@ -311,6 +362,26 @@ staffForm?.addEventListener("submit", async (event) => {
   } catch (error) {
     showError(staffError, error instanceof Error ? error.message : "Не удалось создать");
   }
+});
+
+returnForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const fd = new FormData(returnForm);
+  const reason = String(fd.get("reason") || "").trim();
+  if (reason.length < 5) {
+    showError(returnError, "Напишите причину подробнее (минимум 5 символов)");
+    return;
+  }
+  finishReturnReason(reason);
+});
+
+returnCancel?.addEventListener("click", () => {
+  finishReturnReason(null);
+});
+
+returnDialog?.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  finishReturnReason(null);
 });
 
 void boot();

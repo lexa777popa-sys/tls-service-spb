@@ -22,6 +22,9 @@ export type RemoteBooking = {
   note: string;
   status: BookingStatus;
   assignee: string | null;
+  returnReason?: string | null;
+  returnedBy?: string | null;
+  returnedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   trashedAt?: string | null;
@@ -82,7 +85,7 @@ export function fetchBookings(token: string): Promise<{ bookings: RemoteBooking[
 export function updateBooking(
   token: string,
   id: number,
-  body: { status?: BookingStatus; take?: boolean },
+  body: { status?: BookingStatus; take?: boolean; returnReason?: string },
 ): Promise<{ booking: RemoteBooking }> {
   return request(`/api/bookings/${id}`, {
     method: "PATCH",
