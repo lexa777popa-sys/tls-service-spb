@@ -81,6 +81,14 @@
           </div>
         </header>
 
+        <section id="persist-warning" class="persist-warning" hidden role="alert">
+          <strong>Заявки могут пропасть.</strong>
+          База Postgres не подключена (<code>postgres: false</code>). На бесплатном Render без базы
+          очередь стирается после сна или деплоя. Подключите PostgreSQL и переменную
+          <code>DATABASE_URL</code>, затем сделайте Deploy. До этого жмите «Скачать на ПК» после
+          каждой важной заявки.
+        </section>
+
         <div id="trash-toolbar" class="trash-toolbar" hidden>
           <p>Удалённые заявки. Можно вернуть или стереть навсегда.</p>
           <button type="button" class="btn btn-ghost" id="empty-trash-btn">Очистить корзину</button>

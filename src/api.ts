@@ -44,6 +44,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data;
 }
 
+export function fetchHealth(): Promise<{ ok: boolean; postgres?: boolean; bookings?: number }> {
+  return request("/api/health");
+}
+
 export function submitBooking(
   data: BookingInput & { date: string },
 ): Promise<{ booking: RemoteBooking }> {

@@ -13,6 +13,7 @@ import {
   downloadBackup,
   emptyTrash,
   fetchBookings,
+  fetchHealth,
   fetchMe,
   fetchStaff,
   fetchTrash,
@@ -85,6 +86,17 @@ function statusLabel(status: BookingStatus): string {
   return map[status];
 }
 
+async function refreshPersistWarning(): Promise<void> {
+  const banner = document.getElementById("persist-warning");
+  if (!banner) return;
+  try {
+    const health = await fetchHealth();
+    banner.hidden = Boolean(health.postgres);
+  } catch {
+    banner.hidden = false;
+  }
+}
+
 function setAuthed(user: StaffUser): void {
   currentUser = user;
   if (loginView) loginView.hidden = true;
@@ -95,6 +107,7 @@ function setAuthed(user: StaffUser): void {
   if (restoreLabel instanceof HTMLElement) {
     restoreLabel.hidden = user.role !== "admin";
   }
+  void refreshPersistWarning();
 }
 
 function setGuest(): void {

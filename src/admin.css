@@ -332,6 +332,24 @@
   cursor: pointer;
 }
 
+.persist-warning {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #f04438;
+  background: #fef3f2;
+  color: #912018;
+  line-height: 1.45;
+}
+
+.persist-warning[hidden] {
+  display: none !important;
+}
+
+.persist-warning code {
+  font-size: 0.9em;
+}
+
 .staff-panel {
   padding-top: 12px;
   border-top: 1px solid var(--line);
