@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   server: {
@@ -22,9 +22,5 @@ export default defineConfig({
         cookies: resolve(__dirname, "cookies.html"),
       },
     },
-  },
-  test: {
-    environment: "node",
-    include: ["tests/**/*.test.ts"],
   },
 });
