@@ -1131,6 +1131,20 @@ address {
   color: var(--ink-2);
 }
 
+.modal-note {
+  margin: 14px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+
+.modal-note a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
 /* ---------- Cookie ---------- */
 
 .cookie-banner {

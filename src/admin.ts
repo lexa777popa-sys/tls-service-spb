@@ -54,6 +54,10 @@ let bookings: RemoteBooking[] = [];
 let trash: RemoteBooking[] = [];
 let returnReasonResolver: ((value: string | null) => void) | null = null;
 let filter: "all" | "trash" | BookingStatus = "all";
+let liveSource: EventSource | null = null;
+let pollTimer: number | null = null;
+let lastSignature = "";
+let refreshing = false;
 
 function showError(el: HTMLElement | null, message: string): void {
   if (!el) return;
@@ -88,6 +92,7 @@ function setAuthed(user: StaffUser): void {
 }
 
 function setGuest(): void {
+  stopLiveUpdates();
   currentUser = null;
   token = "";
   localStorage.removeItem(TOKEN_KEY);
@@ -95,12 +100,66 @@ function setGuest(): void {
   if (appView) appView.hidden = true;
 }
 
-async function refreshBookings(): Promise<void> {
+function queueSignature(active: RemoteBooking[], trashed: RemoteBooking[]): string {
+  const pack = (list: RemoteBooking[]) =>
+    list
+      .map(
+        (item) =>
+          [
+            item.id,
+            item.status,
+            item.updatedAt,
+            item.trashedAt || "",
+            item.assignee || "",
+            item.returnReason || "",
+          ].join(":"),
+      )
+      .join(",");
+  return `${pack(active)}#${pack(trashed)}`;
+}
+
+async function refreshBookings(silent = false): Promise<void> {
+  if (!token || refreshing) return;
+  refreshing = true;
+  try {
+    const [active, trashed] = await Promise.all([fetchBookings(token), fetchTrash(token)]);
+    const next = queueSignature(active.bookings, trashed.bookings);
+    bookings = active.bookings;
+    trash = trashed.bookings;
+    if (next !== lastSignature) {
+      lastSignature = next;
+      renderBookings();
+    }
+  } catch (error) {
+    if (!silent) throw error;
+  } finally {
+    refreshing = false;
+  }
+}
+
+function stopLiveUpdates(): void {
+  liveSource?.close();
+  liveSource = null;
+  if (pollTimer != null) {
+    window.clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function startLiveUpdates(): void {
+  stopLiveUpdates();
   if (!token) return;
-  const [active, trashed] = await Promise.all([fetchBookings(token), fetchTrash(token)]);
-  bookings = active.bookings;
-  trash = trashed.bookings;
-  renderBookings();
+
+  const source = new EventSource(`/api/bookings/stream?token=${encodeURIComponent(token)}`);
+  source.addEventListener("bookings", () => {
+    void refreshBookings(true);
+  });
+  liveSource = source;
+
+  pollTimer = window.setInterval(() => {
+    if (document.visibilityState === "hidden") return;
+    void refreshBookings(true);
+  }, 5000);
 }
 
 async function refreshStaff(): Promise<void> {
@@ -235,6 +294,7 @@ async function boot(): Promise<void> {
     setAuthed(me.user);
     await refreshBookings();
     await refreshStaff();
+    startLiveUpdates();
   } catch {
     setGuest();
   }
@@ -251,6 +311,7 @@ loginForm?.addEventListener("submit", async (event) => {
     setAuthed(result.user);
     await refreshBookings();
     await refreshStaff();
+    startLiveUpdates();
     (loginForm as HTMLFormElement).reset();
   } catch (error) {
     showError(loginError, error instanceof Error ? error.message : "Ошибка входа");
@@ -258,6 +319,7 @@ loginForm?.addEventListener("submit", async (event) => {
 });
 
 document.getElementById("logout-btn")?.addEventListener("click", async () => {
+  stopLiveUpdates();
   try {
     if (token) await apiLogout(token);
   } catch {
@@ -382,6 +444,12 @@ returnCancel?.addEventListener("click", () => {
 returnDialog?.addEventListener("cancel", (event) => {
   event.preventDefault();
   finishReturnReason(null);
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && token && currentUser) {
+    void refreshBookings(true);
+  }
 });
 
 void boot();

@@ -14,7 +14,10 @@ export type BookingInput = {
   consent: boolean;
 };
 
-export type Booking = BookingInput & { id: number };
+export type Booking = BookingInput & {
+  id: number;
+  status?: "new" | "in_progress" | "done" | "cancelled";
+};
 
 export const SLOTS = [
   "10:00",

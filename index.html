@@ -428,10 +428,10 @@
       <section id="appointments" class="section appointments" hidden>
         <header class="section-head">
           <p class="eyebrow">Ваши заявки</p>
-          <h2>Копия на этом устройстве</h2>
+          <h2>Заявки с этого устройства</h2>
           <p class="section-lead">
-            Список ниже — ваша локальная копия. Удаление здесь не отменяет заявку у сервиса: если
-            передумали, позвоните нам.
+            Здесь только заявки, которые сейчас есть у сервиса. Если заявку закрыли или удалили в
+            кабинете — она исчезнет и отсюда. Кнопка «Скрыть» убирает строку только у вас на экране.
           </p>
         </header>
         <ul id="appt-list" class="appt-list"></ul>
@@ -496,6 +496,12 @@
     <dialog class="modal" id="done">
       <h2>Заявка принята</h2>
       <p id="done-text"></p>
+      <p class="modal-note">
+        Если вам не позвонили в течение часа, перезвоните нам:
+        <a href="tel:+79013720312">+7 901 372-03-12</a>
+        или
+        <a href="tel:+78129720312">+7 812 972-03-12</a>
+      </p>
       <form method="dialog">
         <button class="btn btn-accent" type="submit">Хорошо</button>
       </form>

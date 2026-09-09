@@ -53,6 +53,34 @@ export function submitBooking(
   });
 }
 
+export type PublicBooking = {
+  id: number;
+  kind: string;
+  brand: string;
+  model: string;
+  service: string;
+  date: string;
+  time: string;
+  name: string;
+  phone: string;
+  status: BookingStatus;
+};
+
+/** Сверяет локальные id+телефон с сервером: возвращает только живые заявки (не в корзине). */
+export function lookupBookings(
+  items: Array<{ id: number; phone: string }>,
+): Promise<{ bookings: PublicBooking[] }> {
+  return request("/api/bookings/lookup", {
+    method: "POST",
+    body: JSON.stringify({
+      items: items.slice(0, 40).map((item) => ({
+        id: item.id,
+        phone: item.phone,
+      })),
+    }),
+  });
+}
+
 export function login(
   loginName: string,
   password: string,

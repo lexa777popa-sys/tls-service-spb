@@ -174,17 +174,77 @@ function cleanSessions(now = Date.now()) {
   db.sessions = db.sessions.filter((s) => Date.parse(s.expiresAt) > now);
 }
 
-function getAuth(req) {
+function resolveToken(req, url) {
   const header = req.headers.authorization || "";
   const match = /^Bearer\s+(.+)$/i.exec(header);
-  if (!match) return null;
+  if (match) return match[1];
+  if (url) {
+    const fromQuery = url.searchParams.get("token");
+    if (fromQuery) return fromQuery;
+  }
+  return "";
+}
+
+function getAuth(req, url) {
+  const token = resolveToken(req, url);
+  if (!token) return null;
   cleanSessions();
-  const hash = tokenHash(match[1]);
+  const hash = tokenHash(token);
   const session = db.sessions.find((s) => s.id === hash);
   if (!session) return null;
   const user = db.users.find((u) => u.login === session.login);
   if (!user) return null;
-  return { user, session, token: match[1] };
+  return { user, session, token };
+}
+
+/** @type {Set<import('node:http').ServerResponse>} */
+const bookingListeners = new Set();
+
+function broadcastBookings() {
+  const payload = `event: bookings\ndata: ${JSON.stringify({ at: Date.now() })}\n\n`;
+  for (const client of bookingListeners) {
+    try {
+      client.write(payload);
+    } catch {
+      bookingListeners.delete(client);
+    }
+  }
+}
+
+function handleBookingStream(req, res, url) {
+  const auth = getAuth(req, url);
+  if (!auth) {
+    json(res, 401, { error: "Нужен вход" });
+    return;
+  }
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  if (typeof res.flushHeaders === "function") {
+    res.flushHeaders();
+  }
+  res.write(`event: connected\ndata: ${JSON.stringify({ ok: true })}\n\n`);
+  bookingListeners.add(res);
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(`: ping\n\n`);
+    } catch {
+      clearInterval(heartbeat);
+      bookingListeners.delete(res);
+    }
+  }, 20000);
+
+  const cleanup = () => {
+    clearInterval(heartbeat);
+    bookingListeners.delete(res);
+  };
+  req.on("close", cleanup);
+  req.on("aborted", cleanup);
 }
 
 function publicUser(user) {
@@ -282,7 +342,52 @@ async function handleCreateBooking(req, res) {
   };
   db.bookings.push(booking);
   await saveDb();
+  broadcastBookings();
   json(res, 201, { booking });
+}
+
+function normalizePhoneDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+async function handleLookupBookings(req, res) {
+  const body = await readBody(req);
+  const rawItems = Array.isArray(body.items) ? body.items.slice(0, 40) : [];
+  const wanted = rawItems
+    .map((item) => ({
+      id: Number(item?.id),
+      phone: normalizePhoneDigits(item?.phone),
+    }))
+    .filter((item) => Number.isFinite(item.id) && item.phone.length >= 10);
+
+  if (!wanted.length) {
+    json(res, 200, { bookings: [] });
+    return;
+  }
+
+  const byId = new Map(wanted.map((item) => [item.id, item.phone]));
+  const bookings = db.bookings
+    .filter((booking) => {
+      if (booking.trashedAt) return false;
+      const phone = byId.get(booking.id);
+      if (!phone) return false;
+      return normalizePhoneDigits(booking.phone) === phone;
+    })
+    .map((booking) => ({
+      id: booking.id,
+      kind: booking.kind,
+      brand: booking.brand,
+      model: booking.model,
+      service: booking.service,
+      date: booking.date,
+      time: booking.time,
+      name: booking.name,
+      phone: booking.phone,
+      status: booking.status,
+    }))
+    .sort((a, b) => b.id - a.id);
+
+  json(res, 200, { bookings });
 }
 
 function handleListBookings(req, res) {
@@ -355,6 +460,7 @@ async function handlePatchBooking(req, res, id) {
   }
   booking.updatedAt = new Date().toISOString();
   await saveDb();
+  broadcastBookings();
   json(res, 200, { booking });
 }
 
@@ -375,6 +481,7 @@ async function handleTrashBooking(req, res, id) {
   booking.trashedAt = now;
   booking.updatedAt = now;
   await saveDb();
+  broadcastBookings();
   json(res, 200, { booking });
 }
 
@@ -394,6 +501,7 @@ async function handleRestoreBooking(req, res, id) {
   booking.trashedAt = null;
   booking.updatedAt = new Date().toISOString();
   await saveDb();
+  broadcastBookings();
   json(res, 200, { booking });
 }
 
@@ -412,6 +520,7 @@ async function handlePurgeBooking(req, res, id) {
 
   db.bookings.splice(index, 1);
   await saveDb();
+  broadcastBookings();
   json(res, 200, { ok: true });
 }
 
@@ -425,6 +534,7 @@ async function handleEmptyTrash(req, res) {
   const before = db.bookings.length;
   db.bookings = db.bookings.filter((b) => !b.trashedAt);
   await saveDb();
+  broadcastBookings();
   json(res, 200, { ok: true, removed: before - db.bookings.length });
 }
 
@@ -521,8 +631,16 @@ const server = createServer(async (req, res) => {
       await handleCreateBooking(req, res);
       return;
     }
+    if (method === "POST" && pathname === "/api/bookings/lookup") {
+      await handleLookupBookings(req, res);
+      return;
+    }
     if (method === "GET" && pathname === "/api/bookings") {
       handleListBookings(req, res);
+      return;
+    }
+    if (method === "GET" && pathname === "/api/bookings/stream") {
+      handleBookingStream(req, res, url);
       return;
     }
     if (method === "GET" && pathname === "/api/bookings/trash") {

@@ -12,7 +12,7 @@ import "@fontsource/manrope/700.css";
 import { COOKIE_CONSENT_KEY, OPERATOR } from "./operator";
 import { createCookiePreferences, parseCookiePreferences, type CookiePreferences } from "./cookies";
 import { initReveal, initScrollUi } from "./motion";
-import { submitBooking } from "./api";
+import { lookupBookings, submitBooking } from "./api";
 import { loadBookings, removeBooking, saveBookings } from "./storage";
 import {
   SLOTS,
@@ -23,6 +23,7 @@ import {
   parseBookingDate,
   sanitizeDateInput,
   validateBooking,
+  type Booking,
   type BookingInput,
 } from "./validation";
 import "./style.css";
@@ -156,12 +157,24 @@ function initDateField(input: HTMLInputElement): void {
   });
 }
 
-function renderAppts(): void {
+function statusLabel(status: Booking["status"]): string {
+  switch (status) {
+    case "in_progress":
+      return "В работе";
+    case "done":
+      return "Закрыта";
+    case "cancelled":
+      return "Отменена";
+    default:
+      return "Новая";
+  }
+}
+
+function renderAppts(items = loadBookings()): void {
   const section = document.getElementById("appointments");
   const list = document.getElementById("appt-list");
   if (!section || !list) return;
 
-  const items = loadBookings();
   if (!items.length) {
     section.hidden = true;
     list.replaceChildren();
@@ -174,14 +187,54 @@ function renderAppts(): void {
     .reverse()
     .map(
       (a) => `<li>
-        <span><strong>${escapeHtml(formatBookingDate(a.date))} · ${escapeHtml(a.time)}</strong><br />${escapeHtml(a.brand)} ${escapeHtml(a.model)} — ${escapeHtml(a.service || kindTitle(a.kind))}</span>
+        <span><strong>${escapeHtml(formatBookingDate(a.date))} · ${escapeHtml(a.time)}</strong><br />${escapeHtml(a.brand)} ${escapeHtml(a.model)} — ${escapeHtml(a.service || kindTitle(a.kind))}<br /><em class="appt-status">${escapeHtml(statusLabel(a.status))}</em></span>
         <span class="appt-side">
           <span>${escapeHtml(a.name)}<br />${escapeHtml(a.phone)}</span>
-          <button type="button" class="btn btn-ghost appt-remove" data-remove-id="${a.id}">Удалить</button>
+          <button type="button" class="btn btn-ghost appt-remove" data-remove-id="${a.id}">Скрыть</button>
         </span>
       </li>`,
     )
     .join("");
+}
+
+async function syncAppts(): Promise<void> {
+  const local = loadBookings();
+  if (!local.length) {
+    renderAppts([]);
+    return;
+  }
+
+  try {
+    const remote = await lookupBookings(
+      local.map((item) => ({ id: item.id, phone: item.phone })),
+    );
+    const byId = new Map(remote.bookings.map((item) => [item.id, item]));
+    const synced: Booking[] = local
+      .map((item) => {
+        const live = byId.get(item.id);
+        if (!live) return null;
+        return {
+          ...item,
+          kind: live.kind,
+          brand: live.brand,
+          model: live.model,
+          service: live.service,
+          date: live.date,
+          time: live.time,
+          name: live.name,
+          phone: live.phone,
+          status: live.status,
+          consent: true,
+        };
+      })
+      .filter((item): item is Booking => item != null);
+
+    saveBookings(synced);
+    renderAppts(synced);
+  } catch {
+    // Если сервер недоступен — показываем локальный список, чтобы не пугать пустотой.
+    renderAppts(local);
+  }
 }
 
 function initAppts(): void {
@@ -196,7 +249,7 @@ function initAppts(): void {
 
     const id = Number(button.dataset.removeId);
     if (!Number.isFinite(id)) return;
-    if (!window.confirm("Удалить эту заявку из списка на этом устройстве?")) return;
+    if (!window.confirm("Скрыть эту заявку из списка на этом устройстве?")) return;
 
     removeBooking(id);
     renderAppts();
@@ -258,9 +311,10 @@ function initBookingForm(): void {
         ...data,
         date: result.date,
         id: remote.booking.id,
+        status: remote.booking.status,
       });
       saveBookings(items);
-      renderAppts();
+      renderAppts(items);
 
       doneText.textContent = bookingDoneMessage({
         name: data.name,
@@ -302,7 +356,7 @@ function initLegalNav(): void {
 initCookieBanner();
 initBookingForm();
 initAppts();
-renderAppts();
+void syncAppts();
 initLegalNav();
 initScrollUi();
 initReveal(REVEAL_TARGETS);
