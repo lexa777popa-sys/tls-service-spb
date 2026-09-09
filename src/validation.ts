@@ -32,11 +32,11 @@ export const SLOTS = [
   "19:00",
 ] as const;
 
-/** Клиент вписывает ровно 4 цифры: ДДММ, например «2409». */
+/** Клиент вписывает день и месяц через точку: ДД.ММ, например «24.09». */
 const DAY_MONTH_DIGITS = /^(0[1-9]|[12]\d|3[01])(0[1-9]|1[0-2])$/;
 
 /**
- * Переводит ввод «ДДММ» в ISO-дату ближайшего такого дня.
+ * Переводит ввод «ДД.ММ» (или «ДДММ») в ISO-дату ближайшего такого дня.
  * Год указывать не нужно: если день в этом году уже прошёл, берём следующий.
  */
 export function parseBookingDate(value: string, now = new Date()): string | null {
@@ -59,15 +59,17 @@ export function parseBookingDate(value: string, now = new Date()): string | null
   return null;
 }
 
-/** Оставляет только цифры даты, не больше 4 символов. */
+/** Оставляет цифры даты и ставит точку: «24.09». */
 export function sanitizeDateInput(value: string): string {
-  return value.replace(/\D/g, "").slice(0, 4);
+  const digits = value.replace(/\D/g, "").slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}.${digits.slice(2)}`;
 }
 
-/** Приводит дату к виду «2409» для поля ввода. */
+/** Приводит дату к виду «24.09» для поля ввода. */
 export function formatDayMonth(iso: string): string {
   const [, month, day] = iso.split("-");
-  return month && day ? `${day}${month}` : "";
+  return month && day ? `${day}.${month}` : "";
 }
 
 /** Человеческая подпись сохранённой даты: «чт, 10 сентября». */
@@ -88,9 +90,39 @@ export function toISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Российский номер: +7 и ещё 10 цифр (итого 11 цифр, начинается с 7). */
+export function phoneDigits(value: string): string {
+  let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("8") && digits.length === 11) {
+    digits = `7${digits.slice(1)}`;
+  }
+  if (digits.length === 10 && digits.startsWith("9")) {
+    digits = `7${digits}`;
+  }
+  return digits;
+}
+
 export function phoneOk(value: string): boolean {
-  const digits = value.replace(/\D/g, "");
-  return digits.length >= 10 && digits.length <= 12;
+  const digits = phoneDigits(value);
+  return /^7\d{10}$/.test(digits);
+}
+
+/** Маска ввода: всегда +7 и до 10 цифр после. */
+export function sanitizePhoneInput(value: string): string {
+  let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("8")) digits = `7${digits.slice(1)}`;
+  if (!digits.startsWith("7")) digits = `7${digits}`;
+  digits = digits.slice(0, 11);
+  const rest = digits.slice(1);
+  if (!rest) return "+7";
+  if (rest.length <= 3) return `+7 ${rest}`;
+  if (rest.length <= 6) return `+7 ${rest.slice(0, 3)} ${rest.slice(3)}`;
+  if (rest.length <= 8) return `+7 ${rest.slice(0, 3)} ${rest.slice(3, 6)}-${rest.slice(6)}`;
+  return `+7 ${rest.slice(0, 3)} ${rest.slice(3, 6)}-${rest.slice(6, 8)}-${rest.slice(8, 10)}`;
+}
+
+export function formatPhoneStored(value: string): string {
+  return phoneOk(value) ? sanitizePhoneInput(value) : String(value || "").trim();
 }
 
 export function kindLabel(kind: string): string {
@@ -142,14 +174,14 @@ export function validateBooking(data: BookingInput, now = new Date()): BookingCh
     return { ok: false, field: "model", message: "Укажите модель автомобиля." };
   }
   if (!String(data.date || "").trim()) {
-    return { ok: false, field: "date", message: "Укажите дату визита — 4 цифры ДДММ, например 2409." };
+    return { ok: false, field: "date", message: "Укажите дату визита — ДД.ММ, например 24.09." };
   }
   const date = parseBookingDate(data.date, now);
   if (!date) {
     return {
       ok: false,
       field: "date",
-      message: "Дата указана неверно. Нужны 4 цифры ДДММ: день 01–31, месяц 01–12. Например, 2409.",
+      message: "Дата указана неверно. Формат ДД.ММ: день 01–31, месяц 01–12. Например, 24.09.",
     };
   }
   if (!data.time?.trim()) {
@@ -162,7 +194,7 @@ export function validateBooking(data: BookingInput, now = new Date()): BookingCh
     return {
       ok: false,
       field: "phone",
-      message: "Проверьте телефон — нужно не меньше 10 цифр.",
+      message: "Укажите номер в формате +7 XXX XXX-XX-XX — только российский номер.",
     };
   }
   if (!data.consent) {

@@ -49,7 +49,7 @@ export function fetchHealth(): Promise<{ ok: boolean; postgres?: boolean; bookin
 }
 
 export function submitBooking(
-  data: BookingInput & { date: string },
+  data: BookingInput & { date: string; formOpenedAt?: number; company_url?: string },
 ): Promise<{ booking: RemoteBooking }> {
   return request("/api/bookings", {
     method: "POST",

@@ -13,13 +13,16 @@ import {
 } from "../src/validation";
 
 describe("phoneOk", () => {
-  it("принимает российский номер", () => {
+  it("принимает российский номер +7", () => {
     expect(phoneOk("+7 901 372-03-12")).toBe(true);
     expect(phoneOk("89013720312")).toBe(true);
+    expect(phoneOk("79013720312")).toBe(true);
   });
 
-  it("отклоняет слишком короткий номер", () => {
+  it("отклоняет иностранные и короткие номера", () => {
     expect(phoneOk("12345")).toBe(false);
+    expect(phoneOk("+1 202 555 0133")).toBe(false);
+    expect(phoneOk("+7 901 372")).toBe(false);
   });
 });
 
@@ -30,7 +33,7 @@ describe("validateBooking", () => {
     brand: "Toyota",
     model: "Camry",
     service: "ТО-1 · 10 000 км",
-    date: "2409",
+    date: "24.09",
     time: "11:00",
     name: "Иван",
     phone: "+79013720312",
@@ -50,11 +53,11 @@ describe("validateBooking", () => {
   });
 
   it("не проверяет занятость: принимает любой корректный день", () => {
-    expect(validateBooking({ ...base, date: "3112", time: "19:00" }, now)).toEqual({
+    expect(validateBooking({ ...base, date: "31.12", time: "19:00" }, now)).toEqual({
       ok: true,
       date: "2026-12-31",
     });
-    expect(validateBooking({ ...base, date: "0503" }, now)).toEqual({
+    expect(validateBooking({ ...base, date: "05.03" }, now)).toEqual({
       ok: true,
       date: "2027-03-05",
     });
@@ -64,7 +67,7 @@ describe("validateBooking", () => {
     const result = validateBooking({ ...base, date: "как-нибудь" }, now);
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.message).toContain("ДДММ");
+      expect(result.message).toContain("ДД.ММ");
     }
   });
 
@@ -104,10 +107,10 @@ describe("validateBooking", () => {
 describe("parseBookingDate", () => {
   const now = new Date("2026-09-09T12:00:00");
 
-  it("принимает ровно 4 цифры ДДММ", () => {
-    expect(parseBookingDate("2409", now)).toBe("2026-09-24");
+  it("принимает ДД.ММ и 4 цифры без точки", () => {
     expect(parseBookingDate("24.09", now)).toBe("2026-09-24");
-    expect(parseBookingDate("0102", now)).toBe("2027-02-01");
+    expect(parseBookingDate("2409", now)).toBe("2026-09-24");
+    expect(parseBookingDate("01.02", now)).toBe("2027-02-01");
   });
 
   it("отклоняет день/месяц вне диапазона и мусор", () => {
@@ -122,9 +125,11 @@ describe("parseBookingDate", () => {
 });
 
 describe("sanitizeDateInput", () => {
-  it("оставляет только 4 цифры", () => {
-    expect(sanitizeDateInput("24.09")).toBe("2409");
-    expect(sanitizeDateInput("ab12cd345")).toBe("1234");
+  it("ставит точку после дня", () => {
+    expect(sanitizeDateInput("24.09")).toBe("24.09");
+    expect(sanitizeDateInput("2409")).toBe("24.09");
+    expect(sanitizeDateInput("ab12cd345")).toBe("12.34");
+    expect(sanitizeDateInput("24")).toBe("24");
     expect(sanitizeDateInput("")).toBe("");
   });
 });
@@ -141,8 +146,8 @@ describe("helpers", () => {
     expect(formatBookingDate("")).toBe("");
   });
 
-  it("возвращает дату в поле в виде «ДДММ»", () => {
-    expect(formatDayMonth("2026-09-04")).toBe("0409");
+  it("возвращает дату в поле в виде «ДД.ММ»", () => {
+    expect(formatDayMonth("2026-09-04")).toBe("04.09");
     expect(formatDayMonth("")).toBe("");
   });
 

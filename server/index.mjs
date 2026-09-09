@@ -481,6 +481,27 @@ function handleMe(req, res) {
 
 async function handleCreateBooking(req, res) {
   const body = await readBody(req);
+  const ip = clientIp(req);
+
+  // Honeypot: боты часто заполняют скрытое поле.
+  if (String(body.company_url || "").trim()) {
+    json(res, 201, { booking: { id: 0, status: "new" } });
+    return;
+  }
+
+  // Слишком быстрая отправка — похоже на скрипт.
+  const openedAt = Number(body.formOpenedAt || 0);
+  if (openedAt && Date.now() - openedAt < 2500) {
+    json(res, 429, { error: "Подождите пару секунд и отправьте заявку ещё раз." });
+    return;
+  }
+
+  const rate = checkBookingRateLimit(ip, String(body.phone || ""));
+  if (!rate.ok) {
+    json(res, 429, { error: rate.error });
+    return;
+  }
+
   const required = ["kind", "brand", "model", "date", "time", "name", "phone"];
   for (const key of required) {
     if (!String(body[key] || "").trim()) {
@@ -490,6 +511,14 @@ async function handleCreateBooking(req, res) {
   }
   if (!body.consent) {
     json(res, 400, { error: "Нужно согласие на обработку персональных данных" });
+    return;
+  }
+
+  const phone = formatRuPhone(body.phone);
+  if (!phone) {
+    json(res, 400, {
+      error: "Укажите номер в формате +7 XXX XXX-XX-XX — только российский номер.",
+    });
     return;
   }
 
@@ -504,7 +533,7 @@ async function handleCreateBooking(req, res) {
     date: String(body.date).trim(),
     time: String(body.time).trim(),
     name: String(body.name).trim(),
-    phone: String(body.phone).trim(),
+    phone,
     note: String(body.note || "").trim(),
     status: "new",
     assignee: null,
@@ -516,13 +545,85 @@ async function handleCreateBooking(req, res) {
     trashedAt: null,
   };
   db.bookings.push(booking);
+  rememberBookingAttempt(ip, phone);
   await saveDb();
   broadcastBookings();
   json(res, 201, { booking });
 }
 
 function normalizePhoneDigits(value) {
-  return String(value || "").replace(/\D/g, "");
+  let digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("8") && digits.length === 11) digits = `7${digits.slice(1)}`;
+  if (digits.length === 10 && digits.startsWith("9")) digits = `7${digits}`;
+  return digits;
+}
+
+function formatRuPhone(value) {
+  const digits = normalizePhoneDigits(value);
+  if (!/^7\d{10}$/.test(digits)) return null;
+  const rest = digits.slice(1);
+  return `+7 ${rest.slice(0, 3)} ${rest.slice(3, 6)}-${rest.slice(6, 8)}-${rest.slice(8, 10)}`;
+}
+
+function clientIp(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "")
+    .split(",")[0]
+    .trim();
+  return forwarded || req.socket?.remoteAddress || "unknown";
+}
+
+/** @type {Map<string, number[]>} */
+const bookingAttemptsByIp = new Map();
+/** @type {Map<string, number[]>} */
+const bookingAttemptsByPhone = new Map();
+
+function pruneAttempts(list, windowMs) {
+  const from = Date.now() - windowMs;
+  return list.filter((ts) => ts >= from);
+}
+
+function checkBookingRateLimit(ip, phoneRaw) {
+  const now = Date.now();
+  const hour = 60 * 60 * 1000;
+  const day = 24 * hour;
+  const phone = normalizePhoneDigits(phoneRaw);
+
+  const ipHour = pruneAttempts(bookingAttemptsByIp.get(ip) || [], hour);
+  const ipDay = pruneAttempts(bookingAttemptsByIp.get(ip) || [], day);
+  bookingAttemptsByIp.set(ip, ipDay);
+
+  if (ipHour.length >= 3) {
+    return { ok: false, error: "Слишком много заявок с вашего адреса. Попробуйте позже или позвоните нам." };
+  }
+  if (ipDay.length >= 8) {
+    return { ok: false, error: "Достигнут дневной лимит заявок с вашего адреса. Позвоните нам." };
+  }
+
+  if (phone) {
+    const phoneHour = pruneAttempts(bookingAttemptsByPhone.get(phone) || [], hour);
+    bookingAttemptsByPhone.set(phone, phoneHour);
+    if (phoneHour.length >= 2) {
+      return {
+        ok: false,
+        error: "С этого номера уже недавно оставляли заявку. Подождите или позвоните нам.",
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
+function rememberBookingAttempt(ip, phone) {
+  const now = Date.now();
+  const ipList = pruneAttempts(bookingAttemptsByIp.get(ip) || [], 24 * 60 * 60 * 1000);
+  ipList.push(now);
+  bookingAttemptsByIp.set(ip, ipList);
+
+  const digits = normalizePhoneDigits(phone);
+  if (!digits) return;
+  const phoneList = pruneAttempts(bookingAttemptsByPhone.get(digits) || [], 24 * 60 * 60 * 1000);
+  phoneList.push(now);
+  bookingAttemptsByPhone.set(digits, phoneList);
 }
 
 async function handleLookupBookings(req, res) {

@@ -22,6 +22,8 @@ import {
   kindTitle,
   parseBookingDate,
   sanitizeDateInput,
+  sanitizePhoneInput,
+  formatPhoneStored,
   validateBooking,
   type Booking,
   type BookingField,
@@ -145,7 +147,7 @@ function fillTimes(select: HTMLSelectElement): void {
     SLOTS.map((t) => `<option value="${t}">${t}</option>`).join("");
 }
 
-/** Дата — ровно 4 цифры ДДММ; лишнее и буквы отсекаем при вводе. */
+/** Дата — ДД.ММ; точка ставится автоматически при вводе. */
 function initDateField(input: HTMLInputElement): void {
   input.addEventListener("input", () => {
     const next = sanitizeDateInput(input.value);
@@ -155,6 +157,32 @@ function initDateField(input: HTMLInputElement): void {
   input.addEventListener("blur", () => {
     const iso = parseBookingDate(input.value);
     if (iso) input.value = formatDayMonth(iso);
+  });
+}
+
+/** Телефон всегда с +7, лишние символы отсекаем. */
+function initPhoneField(input: HTMLInputElement): void {
+  if (!input.value.trim()) input.value = "+7";
+  input.addEventListener("focus", () => {
+    if (!input.value.trim()) input.value = "+7";
+  });
+  input.addEventListener("input", () => {
+    const next = sanitizePhoneInput(input.value);
+    if (input.value !== next) input.value = next;
+  });
+  input.addEventListener("blur", () => {
+    input.value = sanitizePhoneInput(input.value || "+7");
+  });
+  input.addEventListener("keydown", (event) => {
+    const digits = input.value.replace(/\D/g, "");
+    if (
+      (event.key === "Backspace" || event.key === "Delete") &&
+      digits.length <= 1 &&
+      (input.selectionStart ?? 0) <= 2
+    ) {
+      event.preventDefault();
+      input.value = "+7";
+    }
   });
 }
 
@@ -263,7 +291,12 @@ function initBookingForm(): void {
 
   const timeSelect = form.elements.namedItem("time");
   const dateInput = form.elements.namedItem("date");
-  if (!(timeSelect instanceof HTMLSelectElement) || !(dateInput instanceof HTMLInputElement)) {
+  const phoneInput = form.elements.namedItem("phone");
+  if (
+    !(timeSelect instanceof HTMLSelectElement) ||
+    !(dateInput instanceof HTMLInputElement) ||
+    !(phoneInput instanceof HTMLInputElement)
+  ) {
     return;
   }
 
@@ -271,9 +304,11 @@ function initBookingForm(): void {
   const done = qs<HTMLDialogElement>("#done");
   const doneText = qs<HTMLElement>("#done-text");
   const consent = form.elements.namedItem("consent");
+  const formOpenedAt = Date.now();
 
   fillTimes(timeSelect);
   initDateField(dateInput);
+  initPhoneField(phoneInput);
   if (consent instanceof HTMLInputElement) consent.checked = false;
 
   const clearFieldError = () => {
@@ -311,6 +346,13 @@ function initBookingForm(): void {
     clearFieldError();
 
     const fd = new FormData(form);
+    const honeypot = String(fd.get("company_url") || "").trim();
+    if (honeypot) {
+      errorEl.textContent = "Не удалось отправить заявку. Обновите страницу и попробуйте снова.";
+      errorEl.hidden = false;
+      return;
+    }
+
     const data: BookingInput = {
       kind: String(fd.get("kind") ?? "repair"),
       brand: String(fd.get("brand") ?? ""),
@@ -320,7 +362,7 @@ function initBookingForm(): void {
       date: String(fd.get("date") ?? ""),
       time: String(fd.get("time") ?? ""),
       name: String(fd.get("name") ?? ""),
-      phone: String(fd.get("phone") ?? ""),
+      phone: sanitizePhoneInput(String(fd.get("phone") ?? "")),
       note: String(fd.get("note") ?? ""),
       consent: fd.get("consent") === "on",
     };
@@ -335,7 +377,12 @@ function initBookingForm(): void {
     if (submitBtn) submitBtn.disabled = true;
 
     try {
-      const remote = await submitBooking({ ...data, date: result.date });
+      const remote = await submitBooking({
+        ...data,
+        phone: formatPhoneStored(data.phone),
+        date: result.date,
+        formOpenedAt,
+      });
       const items = loadBookings();
       items.push({
         ...data,

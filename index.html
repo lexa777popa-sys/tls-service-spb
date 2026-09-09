@@ -60,7 +60,17 @@
 
       <section class="strip" aria-label="О сервисе">
         <p><strong>TLS</strong> Toyota Lexus Subaru · Service SPB</p>
-        <p>ТО · диагностика · слесарный и кузовной ремонт · шиномонтаж · климат</p>
+        <p class="strip-links">
+          <a href="#to">ТО</a>
+          <span aria-hidden="true">·</span>
+          <a href="#service-diag">диагностика</a>
+          <span aria-hidden="true">·</span>
+          <a href="#service-repair">слесарный и кузовной ремонт</a>
+          <span aria-hidden="true">·</span>
+          <a href="#service-tires">шиномонтаж</a>
+          <span aria-hidden="true">·</span>
+          <a href="#service-climate">климат</a>
+        </p>
       </section>
 
       <section id="services" class="section">
@@ -73,7 +83,7 @@
           </p>
         </header>
         <div class="service-list">
-          <article class="service-item">
+          <article id="service-to" class="service-item">
             <p class="service-kicker">01</p>
             <h3>Техническое обслуживание</h3>
             <p>
@@ -81,7 +91,7 @@
               технических жидкостей.
             </p>
           </article>
-          <article class="service-item">
+          <article id="service-diag" class="service-item">
             <p class="service-kicker">02</p>
             <h3>Диагностика</h3>
             <p>
@@ -89,7 +99,7 @@
               подушки безопасности, круиз-контроль, иммобилайзер.
             </p>
           </article>
-          <article class="service-item">
+          <article id="service-repair" class="service-item">
             <p class="service-kicker">03</p>
             <h3>Слесарно-механический ремонт</h3>
             <p>
@@ -118,7 +128,7 @@
             <h3>Полировка</h3>
             <p>Полировка деталей кузова и фар, устранение мелких царапин и матовости лака.</p>
           </article>
-          <article class="service-item">
+          <article id="service-tires" class="service-item">
             <p class="service-kicker">07</p>
             <h3>Шиномонтаж и&nbsp;хранение шин</h3>
             <p>Сезонная смена, балансировка, ремонт колёс и сезонное хранение комплектов.</p>
@@ -131,17 +141,18 @@
               шин.
             </p>
           </article>
-          <article class="service-item">
+          <article id="service-climate" class="service-item">
             <p class="service-kicker">09</p>
             <h3>Кондиционер и&nbsp;климат</h3>
             <p>
-              Заправка, поиск утечек, компрессоры и радиаторы, антибактериальная обработка
-              кондиционера и салона.
+              Диагностика и обслуживание климат-системы: заправка фреоном, поиск и устранение
+              утечек, замена компрессора и радиатора, антибактериальная очистка испарителя и
+              воздуховодов.
             </p>
           </article>
           <article class="service-item">
             <p class="service-kicker">10</p>
-            <h3>Запчасти и&nbsp;расходники</h3>
+            <h3>Запчасти и&nbsp;расходные материалы</h3>
             <p>
               Подбор оригинальных деталей и аналогов, работа с запчастями клиента, заказ по VIN.
             </p>
@@ -186,7 +197,7 @@
               <li>Проверка давления в&nbsp;шинах, сброс сервисного интервала</li>
             </ul>
           </article>
-          <article class="to-block featured">
+          <article class="to-block">
             <h3>ТО-2</h3>
             <p class="to-km">каждые 20&nbsp;000&nbsp;км</p>
             <ul>
@@ -198,7 +209,7 @@
             </ul>
           </article>
           <article class="to-block">
-            <h3>Большое ТО</h3>
+            <h3>ТО-3</h3>
             <p class="to-km">40–80&nbsp;000&nbsp;км</p>
             <ul>
               <li>Все работы ТО-2</li>
@@ -220,15 +231,15 @@
           <p class="eyebrow">Запись на сайте</p>
           <h2>Оставьте заявку на визит</h2>
           <p class="section-lead">
-            Заявка уходит в очередь сервиса: её видят сотрудники TLS и перезванивают, чтобы
-            подтвердить время. Занятость сайт не проверяет — если окно занято, предложим ближайшее.
+            Заполните форму — мы перезвоним, подтвердим время и ответим на вопросы по работам.
+            Если выбранное окно окажется занято, предложим ближайшее свободное.
           </p>
           <ul class="booking-points">
-            <li>Отдельно выбираете ремонт, ТО или диагностику</li>
-            <li>Конкретную услугу можно не указывать — уточним при звонке</li>
-            <li>Дату и время вписываете сами — подбирать свободное окно не нужно</li>
-            <li>Если время занято, предложим ближайшее, когда перезвоним</li>
-            <li>Марку вписываете сами — принимаем любые автомобили</li>
+            <li>Выберите направление: ремонт, ТО или диагностика</li>
+            <li>Конкретную услугу можно не указывать — уточним по телефону</li>
+            <li>Укажите удобные дату и время визита</li>
+            <li>Если слот занят, при звонке предложим другое время</li>
+            <li>Укажите марку и модель — принимаем автомобили любых марок</li>
           </ul>
         </div>
 
@@ -331,7 +342,7 @@
                 <optgroup label="Техническое обслуживание">
                   <option>ТО-1 · 10 000 км</option>
                   <option>ТО-2 · 20 000 км</option>
-                  <option>Большое ТО</option>
+                  <option>ТО-3</option>
                   <option>Замена масла и технических жидкостей</option>
                 </optgroup>
                 <optgroup label="Диагностика">
@@ -372,8 +383,8 @@
                 name="date"
                 type="text"
                 inputmode="numeric"
-                placeholder="ДДММ"
-                maxlength="4"
+                placeholder="ДД.ММ"
+                maxlength="5"
                 required
                 autocomplete="off"
               />
@@ -390,7 +401,25 @@
             </label>
             <label>
               Телефон
-              <input name="phone" type="tel" autocomplete="tel" placeholder="+7" required />
+              <input
+                name="phone"
+                type="tel"
+                autocomplete="tel"
+                inputmode="tel"
+                placeholder="+7 900 000-00-00"
+                maxlength="18"
+                required
+              />
+            </label>
+            <label class="hp-field" aria-hidden="true">
+              Сайт компании
+              <input
+                name="company_url"
+                type="text"
+                tabindex="-1"
+                autocomplete="off"
+                value=""
+              />
             </label>
             <label class="wide">
               Комментарий
