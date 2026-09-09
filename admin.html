@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Заявки — TLS Service SPB</title>
+    <meta name="robots" content="noindex, nofollow" />
+  </head>
+  <body class="admin-body">
+    <a class="skip" href="#admin-main">К заявкам</a>
+
+    <section id="login-view" class="admin-login" hidden>
+      <div class="admin-login-card">
+        <p class="eyebrow">Кабинет сотрудников</p>
+        <h1>TLS · заявки</h1>
+        <p class="admin-login-lead">Вход по логину. Почта не нужна.</p>
+        <form id="login-form" class="admin-login-form" novalidate>
+          <label>
+            Логин
+            <input name="login" type="text" autocomplete="username" required />
+          </label>
+          <label>
+            Пароль
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <p class="form-error" id="login-error" hidden></p>
+          <button class="btn btn-accent btn-block" type="submit">Войти</button>
+        </form>
+        <p class="admin-login-fine"><a href="/">← На сайт</a></p>
+      </div>
+    </section>
+
+    <div id="app-view" hidden>
+      <header class="admin-nav">
+        <div class="admin-nav-brand">
+          <strong>TLS заявки</strong>
+          <span id="whoami"></span>
+        </div>
+        <div class="admin-nav-actions">
+          <button type="button" class="btn btn-ghost" id="refresh-btn">Обновить</button>
+          <button type="button" class="btn btn-ghost" id="logout-btn">Выйти</button>
+        </div>
+      </header>
+
+      <main id="admin-main" class="admin-main">
+        <header class="admin-head">
+          <div>
+            <p class="eyebrow">Очередь</p>
+            <h1>Заявки с сайта</h1>
+          </div>
+          <div class="admin-filters" role="group" aria-label="Фильтр по статусу">
+            <button type="button" class="chip is-active" data-filter="all">Все</button>
+            <button type="button" class="chip" data-filter="new">Новые</button>
+            <button type="button" class="chip" data-filter="in_progress">В работе</button>
+            <button type="button" class="chip" data-filter="done">Закрытые</button>
+            <button type="button" class="chip" data-filter="cancelled">Отменённые</button>
+            <button type="button" class="chip" data-filter="trash">Корзина</button>
+          </div>
+        </header>
+
+        <div id="trash-toolbar" class="trash-toolbar" hidden>
+          <p>Удалённые заявки. Можно вернуть или стереть навсегда.</p>
+          <button type="button" class="btn btn-ghost" id="empty-trash-btn">Очистить корзину</button>
+        </div>
+
+        <p class="form-error" id="app-error" hidden></p>
+        <p id="empty-state" class="admin-empty" hidden>Заявок пока нет.</p>
+        <ul id="booking-list" class="admin-list"></ul>
+
+        <section id="staff-panel" class="admin-staff" hidden>
+          <header class="section-head">
+            <p class="eyebrow">Сотрудники</p>
+            <h2>Выдать доступ оператору</h2>
+            <p class="section-lead">
+              Создайте логин и пароль для сотрудника. Роль только «оператор»: заявки без выдачи
+              админок. Администратор один — ваш текущий аккаунт.
+            </p>
+          </header>
+          <form id="staff-form" class="admin-staff-form" novalidate>
+            <label>
+              Логин
+              <input name="login" type="text" autocomplete="off" required minlength="3" />
+            </label>
+            <label>
+              Имя
+              <input name="name" type="text" autocomplete="off" />
+            </label>
+            <label>
+              Пароль
+              <input
+                name="password"
+                type="password"
+                autocomplete="new-password"
+                required
+                minlength="6"
+              />
+            </label>
+            <button class="btn btn-accent" type="submit">Добавить оператора</button>
+          </form>
+          <p class="form-error" id="staff-error" hidden></p>
+          <ul id="staff-list" class="admin-staff-list"></ul>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/src/admin.ts"></script>
+  </body>
+</html>
