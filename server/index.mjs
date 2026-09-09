@@ -115,14 +115,20 @@ async function initPostgres() {
       ? false
       : { rejectUnauthorized: false },
   });
+  // Только заявки — без паролей сотрудников и сессий.
   await pgPool.query(`
-    CREATE TABLE IF NOT EXISTS app_state (
+    CREATE TABLE IF NOT EXISTS bookings (
       id INTEGER PRIMARY KEY,
-      payload JSONB NOT NULL,
+      data JSONB NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
+    );
+    CREATE TABLE IF NOT EXISTS booking_meta (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      next_booking_id INTEGER NOT NULL DEFAULT 1,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
-  console.log("Postgres persistence enabled");
+  console.log("Postgres persistence enabled (bookings only)");
 }
 
 function normalizeDbState(parsed) {
@@ -136,20 +142,64 @@ function normalizeDbState(parsed) {
 
 async function loadFromPostgres() {
   if (!pgPool) return null;
-  const { rows } = await pgPool.query("SELECT payload FROM app_state WHERE id = 1");
-  if (!rows.length) return null;
-  return normalizeDbState(rows[0].payload);
+
+  // Новый формат: только заявки.
+  const meta = await pgPool.query("SELECT next_booking_id FROM booking_meta WHERE id = 1");
+  const rows = await pgPool.query("SELECT data FROM bookings ORDER BY id ASC");
+  if (rows.rows.length || meta.rows.length) {
+    const bookings = rows.rows.map((row) => row.data);
+    const maxId = bookings.reduce((max, item) => Math.max(max, Number(item?.id) || 0), 0);
+    return {
+      bookings,
+      nextBookingId: Math.max(Number(meta.rows[0]?.next_booking_id) || 1, maxId + 1),
+    };
+  }
+
+  // Старый формат app_state (на всякий случай мигрируем только bookings).
+  try {
+    const legacy = await pgPool.query("SELECT payload FROM app_state WHERE id = 1");
+    if (!legacy.rows.length) return null;
+    const payload = legacy.rows[0].payload || {};
+    const bookings = Array.isArray(payload.bookings) ? payload.bookings : [];
+    if (!bookings.length) return null;
+    const maxId = bookings.reduce((max, item) => Math.max(max, Number(item?.id) || 0), 0);
+    return {
+      bookings,
+      nextBookingId: Math.max(Number(payload.nextBookingId) || 1, maxId + 1),
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function saveToPostgres() {
   if (!pgPool) return;
-  await pgPool.query(
-    `INSERT INTO app_state (id, payload, updated_at)
-     VALUES (1, $1::jsonb, NOW())
-     ON CONFLICT (id) DO UPDATE
-     SET payload = EXCLUDED.payload, updated_at = NOW()`,
-    [JSON.stringify(db)],
-  );
+  const client = await pgPool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("DELETE FROM bookings");
+    for (const booking of db.bookings) {
+      await client.query(
+        `INSERT INTO bookings (id, data, updated_at)
+         VALUES ($1, $2::jsonb, NOW())`,
+        [booking.id, JSON.stringify(booking)],
+      );
+    }
+    await client.query(
+      `INSERT INTO booking_meta (id, next_booking_id, updated_at)
+       VALUES (1, $1, NOW())
+       ON CONFLICT (id) DO UPDATE
+       SET next_booking_id = EXCLUDED.next_booking_id,
+           updated_at = NOW()`,
+      [db.nextBookingId],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function ensureDb() {
@@ -157,48 +207,51 @@ async function ensureDb() {
   await mkdir(BACKUP_DIR, { recursive: true });
   await initPostgres();
 
-  let loaded = false;
+  db = {
+    users: [],
+    sessions: [],
+    bookings: [],
+    nextBookingId: 1,
+  };
 
-  // 1) Postgres переживает перезапуски free-сервиса Render — грузим оттуда в первую очередь.
+  let loadedBookings = false;
+
+  // 1) Postgres — только заявки.
   try {
     const fromPg = await loadFromPostgres();
     if (fromPg) {
-      db = fromPg;
-      loaded = true;
+      db.bookings = fromPg.bookings;
+      db.nextBookingId = fromPg.nextBookingId;
+      loadedBookings = true;
       console.log(`Loaded ${db.bookings.length} booking(s) from Postgres`);
     }
   } catch (error) {
     console.error("Postgres load failed:", error);
   }
 
-  // 2) Локальный файл (удобно для ПК / как запас).
-  if (!loaded) {
+  // 2) Локальный файл — запасной источник заявок.
+  if (!loadedBookings) {
     try {
       const raw = await readFile(DB_PATH, "utf8");
-      db = normalizeDbState(JSON.parse(raw));
-      loaded = true;
+      const parsed = normalizeDbState(JSON.parse(raw));
+      db.bookings = parsed.bookings;
+      db.nextBookingId = parsed.nextBookingId;
+      loadedBookings = true;
       console.log(`Loaded ${db.bookings.length} booking(s) from file`);
     } catch {
-      loaded = false;
+      /* empty */
     }
   }
 
-  // 3) Если основная база пустая/пропала — поднимаем заявки из последнего бэкапа на диске.
-  if (!loaded || !db.bookings.length) {
+  // 3) Бэкапы на диске.
+  if (!loadedBookings || !db.bookings.length) {
     const recovered = await tryRecoverBookingsFromBackup();
     if (recovered) {
       console.log(`Recovered ${db.bookings.length} booking(s) from backup ${recovered}`);
-      loaded = true;
-    } else if (!loaded) {
-      db = {
-        users: [],
-        sessions: [],
-        bookings: [],
-        nextBookingId: 1,
-      };
     }
   }
 
+  // Сотрудники всегда из env — в Postgres не пишем.
   const adminLogin = process.env.ADMIN_LOGIN || "admin";
   const operatorLogin = process.env.OPERATOR_LOGIN || "operator";
   const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
