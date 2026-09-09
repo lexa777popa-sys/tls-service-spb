@@ -3,8 +3,10 @@ services:
     name: tls-service-spb
     runtime: node
     plan: free
+    region: frankfurt
     buildCommand: npm ci && npm run build
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
@@ -18,7 +20,3 @@ services:
         value: operator
       - key: OPERATOR_PASSWORD
         generateValue: true
-    disk:
-      name: tls-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
