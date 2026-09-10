@@ -96,6 +96,15 @@ describe("validateBooking", () => {
     expect(validateBooking({ ...base, brand: "ГАЗ" }, now).ok).toBe(true);
   });
 
+  it("принимает направление специфических работ", () => {
+    expect(
+      validateBooking({ ...base, kind: "special", service: "KDSS — диагностика и ремонт" }, now),
+    ).toEqual({
+      ok: true,
+      date: "2026-09-24",
+    });
+  });
+
   it("не требует конкретную услугу — достаточно направления", () => {
     expect(validateBooking({ ...base, service: "" }, now)).toEqual({
       ok: true,
@@ -138,6 +147,8 @@ describe("helpers", () => {
   it("подписывает тип визита", () => {
     expect(kindLabel("to")).toBe("ТО");
     expect(kindTitle("diag")).toBe("Диагностика");
+    expect(kindLabel("special")).toBe("специфические работы");
+    expect(kindTitle("special")).toBe("Специфические работы");
   });
 
   it("подписывает сохранённую дату без года", () => {

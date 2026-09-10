@@ -89,11 +89,13 @@ function statusLabel(status: BookingStatus): string {
 async function refreshPersistWarning(): Promise<void> {
   const banner = document.getElementById("persist-warning");
   if (!banner) return;
+  const onRender = /\.onrender\.com$/i.test(location.hostname);
   try {
     const health = await fetchHealth();
-    banner.hidden = Boolean(health.postgres);
+    const ephemeral = health.ephemeral ?? (onRender && !health.postgres);
+    banner.hidden = !ephemeral;
   } catch {
-    banner.hidden = false;
+    banner.hidden = !onRender;
   }
 }
 
@@ -122,16 +124,15 @@ function setGuest(): void {
 function queueSignature(active: RemoteBooking[], trashed: RemoteBooking[]): string {
   const pack = (list: RemoteBooking[]) =>
     list
-      .map(
-        (item) =>
-          [
-            item.id,
-            item.status,
-            item.updatedAt,
-            item.trashedAt || "",
-            item.assignee || "",
-            item.returnReason || "",
-          ].join(":"),
+      .map((item) =>
+        [
+          item.id,
+          item.status,
+          item.updatedAt,
+          item.trashedAt || "",
+          item.assignee || "",
+          item.returnReason || "",
+        ].join(":"),
       )
       .join(",");
   return `${pack(active)}#${pack(trashed)}`;
@@ -383,7 +384,11 @@ document.getElementById("backup-restore-input")?.addEventListener("change", asyn
   if (!(input instanceof HTMLInputElement) || !input.files?.length) return;
   const file = input.files[0];
   input.value = "";
-  if (!window.confirm(`Восстановить заявки из файла «${file.name}»? Текущий список на сервере будет заменён.`)) {
+  if (
+    !window.confirm(
+      `Восстановить заявки из файла «${file.name}»? Текущий список на сервере будет заменён.`,
+    )
+  ) {
     return;
   }
   try {

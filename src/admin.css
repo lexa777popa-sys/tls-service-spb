@@ -342,7 +342,7 @@
   line-height: 1.45;
 }
 
-.persist-warning[hidden] {
+[hidden] {
   display: none !important;
 }
 

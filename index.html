@@ -26,6 +26,8 @@
       <nav aria-label="Основная навигация">
         <a href="#services">Услуги</a>
         <a href="#to">ТО</a>
+        <a href="#gallery">Фото</a>
+        <a href="#reviews">Отзывы</a>
         <a href="#booking">Запись</a>
         <a href="#contacts">Контакты</a>
       </nav>
@@ -70,6 +72,8 @@
           <a href="#service-tires">шиномонтаж</a>
           <span aria-hidden="true">·</span>
           <a href="#service-climate">климат</a>
+          <span aria-hidden="true">·</span>
+          <a href="#service-special">AVS, AHC, KDSS и гибриды</a>
         </p>
       </section>
 
@@ -82,101 +86,437 @@
             — основной профиль сервиса.
           </p>
         </header>
-        <div class="service-list">
-          <article id="service-to" class="service-item">
-            <p class="service-kicker">01</p>
-            <h3>Техническое обслуживание</h3>
-            <p>
-              Плановое и внеплановое ТО по регламенту производителя, замена масла, фильтров и
-              технических жидкостей.
-            </p>
-          </article>
-          <article id="service-diag" class="service-item">
-            <p class="service-kicker">02</p>
-            <h3>Диагностика</h3>
-            <p>
-              Полная или частичная проверка электронных систем и блоков: управление двигателем, ABS,
-              подушки безопасности, круиз-контроль, иммобилайзер.
-            </p>
-          </article>
-          <article id="service-repair" class="service-item">
-            <p class="service-kicker">03</p>
-            <h3>Слесарно-механический ремонт</h3>
-            <p>
-              Восстановление двигателя и ГБЦ, коробки передач, ходовой части, тормозов, рулевого
-              управления и электрики.
-            </p>
-          </article>
-          <article class="service-item">
-            <p class="service-kicker">04</p>
-            <h3>Малярно-кузовные работы</h3>
-            <p>
-              Окраска автомобиля или отдельных элементов с подбором цвета, локальная покраска и
-              ремонт без покраски.
-            </p>
-          </article>
-          <article class="service-item">
-            <p class="service-kicker">05</p>
-            <h3>Кузовной ремонт</h3>
-            <p>
-              Ремонт и замена элементов кузова, восстановление геометрии после ДТП, сварочные
-              работы.
-            </p>
-          </article>
-          <article class="service-item">
-            <p class="service-kicker">06</p>
-            <h3>Полировка</h3>
-            <p>Полировка деталей кузова и фар, устранение мелких царапин и матовости лака.</p>
-          </article>
-          <article id="service-tires" class="service-item">
-            <p class="service-kicker">07</p>
-            <h3>Шиномонтаж и&nbsp;хранение шин</h3>
-            <p>Сезонная смена, балансировка, ремонт колёс и сезонное хранение комплектов.</p>
-          </article>
-          <article class="service-item">
-            <p class="service-kicker">08</p>
-            <h3>Развал-схождение</h3>
-            <p>
-              Регулировка углов установки колёс на стенде — после ремонта ходовой и сезонной смены
-              шин.
-            </p>
-          </article>
-          <article id="service-climate" class="service-item">
-            <p class="service-kicker">09</p>
-            <h3>Кондиционер и&nbsp;климат</h3>
-            <p>
-              Диагностика и обслуживание климат-системы: заправка фреоном, поиск и устранение
-              утечек, замена компрессора и радиатора, антибактериальная очистка испарителя и
-              воздуховодов.
-            </p>
-          </article>
-          <article class="service-item">
-            <p class="service-kicker">10</p>
-            <h3>Запчасти и&nbsp;расходные материалы</h3>
-            <p>
-              Подбор оригинальных деталей и аналогов, работа с запчастями клиента, заказ по VIN.
-            </p>
-          </article>
-          <article class="service-item">
-            <p class="service-kicker">11</p>
-            <h3>Дополнительное оборудование</h3>
-            <p>
-              Установка автозапуска и сигнализаций, обход штатного иммобилайзера, парктроники и
-              видеорегистраторы.
-            </p>
-          </article>
-          <article class="service-item">
-            <p class="service-kicker">12</p>
-            <h3>Предпродажная подготовка</h3>
-            <p>
-              Комплексная проверка перед покупкой или продажей, химчистка салона и подготовка
-              автомобиля к осмотру.
-            </p>
-          </article>
+
+        <div class="service-tabs" role="tablist" aria-label="Разделы услуг">
+          <button
+            type="button"
+            class="service-tab is-active"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-general"
+            id="tab-general"
+            data-tab="general"
+          >
+            Основные услуги
+          </button>
+          <button
+            type="button"
+            class="service-tab"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-special"
+            id="tab-special"
+            data-tab="special"
+          >
+            Специфические работы
+          </button>
+        </div>
+
+        <div class="service-panels">
+          <div
+            id="panel-general"
+            class="service-panel is-active"
+            role="tabpanel"
+            aria-labelledby="tab-general"
+          >
+            <div class="service-list">
+              <article id="service-to" class="service-item">
+                <p class="service-kicker">01</p>
+                <h3>Техническое обслуживание</h3>
+                <p>
+                  Плановое и внеплановое ТО по регламенту производителя, замена масла, фильтров и
+                  технических жидкостей.
+                </p>
+              </article>
+              <article id="service-diag" class="service-item">
+                <p class="service-kicker">02</p>
+                <h3>Диагностика</h3>
+                <p>
+                  Полная или частичная проверка электронных систем и блоков: управление двигателем,
+                  ABS, подушки безопасности, круиз-контроль, иммобилайзер.
+                </p>
+              </article>
+              <article id="service-repair" class="service-item">
+                <p class="service-kicker">03</p>
+                <h3>Слесарно-механический ремонт</h3>
+                <p>
+                  Восстановление двигателя и ГБЦ, коробки передач, ходовой части, тормозов, рулевого
+                  управления и электрики.
+                </p>
+              </article>
+              <article class="service-item">
+                <p class="service-kicker">04</p>
+                <h3>Малярно-кузовные работы</h3>
+                <p>
+                  Окраска автомобиля или отдельных элементов с подбором цвета, локальная покраска и
+                  ремонт без покраски. (Выполняют партнёрские сервисы, с&nbsp;которыми мы
+                  сотрудничаем.)
+                </p>
+              </article>
+              <article class="service-item">
+                <p class="service-kicker">05</p>
+                <h3>Кузовной ремонт</h3>
+                <p>
+                  Ремонт и замена элементов кузова, восстановление геометрии после ДТП, сварочные
+                  работы. (Выполняют партнёрские сервисы, с&nbsp;которыми мы сотрудничаем.)
+                </p>
+              </article>
+              <article class="service-item">
+                <p class="service-kicker">06</p>
+                <h3>Полировка</h3>
+                <p>
+                  Полировка деталей кузова и фар, устранение мелких царапин и матовости лака.
+                  (Выполняют партнёрские сервисы, с&nbsp;которыми мы сотрудничаем.)
+                </p>
+              </article>
+              <article id="service-tires" class="service-item">
+                <p class="service-kicker">07</p>
+                <h3>Шиномонтаж и&nbsp;хранение шин</h3>
+                <p>Сезонная смена, балансировка, ремонт колёс и сезонное хранение комплектов.</p>
+              </article>
+              <article class="service-item">
+                <p class="service-kicker">08</p>
+                <h3>Развал-схождение</h3>
+                <p>
+                  Регулировка углов установки колёс на стенде — после ремонта ходовой и сезонной
+                  смены шин.
+                </p>
+              </article>
+              <article id="service-climate" class="service-item">
+                <p class="service-kicker">09</p>
+                <h3>Кондиционер и&nbsp;климат</h3>
+                <p>
+                  Диагностика и обслуживание климат-системы: заправка фреоном, поиск и устранение
+                  утечек, замена компрессора и радиатора, антибактериальная очистка испарителя и
+                  воздуховодов.
+                </p>
+              </article>
+              <article class="service-item">
+                <p class="service-kicker">10</p>
+                <h3>Запчасти и&nbsp;расходные материалы</h3>
+                <p>
+                  Подбор оригинальных деталей и аналогов, работа с запчастями клиента, заказ по VIN.
+                </p>
+              </article>
+              <article class="service-item">
+                <p class="service-kicker">11</p>
+                <h3>Дополнительное оборудование</h3>
+                <p>
+                  Установка автозапуска и сигнализаций, обход штатного иммобилайзера, парктроники и
+                  видеорегистраторы.
+                </p>
+              </article>
+              <article class="service-item">
+                <p class="service-kicker">12</p>
+                <h3>Специфические работы</h3>
+                <p>
+                  Диагностика, калибровка и ремонт пневматической подвески (AVS) и гидроподвески
+                  (AHC), а также системы KDSS.
+                </p>
+              </article>
+              <article class="service-item">
+                <p class="service-kicker">13</p>
+                <h3>Ремонт гибридных авто</h3>
+                <p>
+                  Диагностика и ремонт гибридных систем Toyota, Lexus и&nbsp;Subaru: высоковольтная
+                  батарея, инвертор, преобразователи и сопутствующая электрика.
+                </p>
+              </article>
+              <article class="service-item">
+                <p class="service-kicker">14</p>
+                <h3>Электронные блоки</h3>
+                <p>
+                  Ремонт, адаптация и программирование электронных блоков управления: ЭБУ
+                  двигателя, АКПП, ABS, кузовная электроника и сопутствующие модули.
+                </p>
+              </article>
+            </div>
+          </div>
+
+          <div
+            id="panel-special"
+            class="service-panel"
+            role="tabpanel"
+            aria-labelledby="tab-special"
+            hidden
+          >
+            <div id="service-special" class="special-works">
+              <header class="section-head special-head">
+                <p class="eyebrow">Подвеска · гибриды</p>
+                <h2>Специфические работы</h2>
+                <p class="section-lead">
+                  Диагностика, калибровка и ремонт пневматической подвески (AVS), гидроподвески
+                  (AHC), KDSS и гибридных систем.
+                </p>
+              </header>
+              <div class="service-list special-list">
+                <article class="service-item service-item-featured">
+                  <p class="service-kicker">AVS</p>
+                  <h3>Пневмоподвеска</h3>
+                  <p>
+                    Диагностика, калибровка и ремонт пневматической подвески AVS: компрессор,
+                    стойки, датчики высоты и ошибки системы.
+                  </p>
+                </article>
+                <article class="service-item service-item-featured">
+                  <p class="service-kicker">AHC</p>
+                  <h3>Гидроподвеска</h3>
+                  <p>
+                    Диагностика и ремонт гидроподвески AHC: насос, стойки, накопители давления,
+                    датчики и калибровка посадки кузова.
+                  </p>
+                </article>
+                <article class="service-item service-item-featured">
+                  <p class="service-kicker">KDSS</p>
+                  <h3>Система KDSS</h3>
+                  <p>
+                    Диагностика и ремонт кинетической стабилизации: клапаны, гидролинии,
+                    наконечники и датчики.
+                  </p>
+                </article>
+                <article class="service-item service-item-featured">
+                  <p class="service-kicker">HV</p>
+                  <h3>Гибридные авто</h3>
+                  <p>
+                    Ремонт и диагностика гибридов Toyota, Lexus и&nbsp;Subaru: высоковольтная
+                    батарея, инвертор и связанная электроника.
+                  </p>
+                </article>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id="to" class="section section-alt">
+      <section id="gallery" class="section section-gallery">
+        <header class="section-head">
+          <p class="eyebrow">Сервис</p>
+          <h2>Как выглядит<br />наш бокс</h2>
+          <p class="section-lead">
+            Фото с&nbsp;<a
+              href="https://yandex.ru/maps/org/tls_servis/56676741029/"
+              target="_blank"
+              rel="noopener noreferrer"
+              >карточки в Яндекс Картах</a
+            >
+            — подъёмники, зона шиномонтажа и автомобили в&nbsp;работе.
+          </p>
+        </header>
+        <div class="gallery-strip" aria-label="Фото сервиса">
+          <figure class="gallery-shot">
+            <img
+              src="/images/gallery/service-01.jpg"
+              alt="Бокс TLS: Land Cruiser и Lexus LX на обслуживании"
+              width="1280"
+              height="960"
+              loading="lazy"
+            />
+          </figure>
+          <figure class="gallery-shot">
+            <img
+              src="/images/gallery/service-02.jpg"
+              alt="Просторный бокс с Toyota и Lexus на подъёмниках"
+              width="1280"
+              height="960"
+              loading="lazy"
+            />
+          </figure>
+          <figure class="gallery-shot">
+            <img
+              src="/images/gallery/service-04.jpg"
+              alt="Зона шиномонтажа и въезд в бокс"
+              width="1280"
+              height="720"
+              loading="lazy"
+            />
+          </figure>
+          <figure class="gallery-shot">
+            <img
+              src="/images/gallery/service-05.jpg"
+              alt="Четырёхстоечный подъёмник в сервисной зоне"
+              width="1280"
+              height="720"
+              loading="lazy"
+            />
+          </figure>
+          <figure class="gallery-shot">
+            <img
+              src="/images/gallery/service-06.jpg"
+              alt="Рабочая зона автосервиса TLS"
+              width="1280"
+              height="720"
+              loading="lazy"
+            />
+          </figure>
+          <figure class="gallery-shot">
+            <img
+              src="/images/gallery/service-07.jpg"
+              alt="Оборудование бокса TLS Service SPB"
+              width="1280"
+              height="720"
+              loading="lazy"
+            />
+          </figure>
+        </div>
+      </section>
+
+      <section id="reviews" class="section section-alt">
+        <header class="section-head">
+          <p class="eyebrow">Яндекс Карты · 4,5</p>
+          <h2>Отзывы клиентов</h2>
+          <p class="section-lead">
+            Реальные отзывы с&nbsp;карточки «ТЛС-сервис» на Яндекс Картах — 188 оценок.
+          </p>
+        </header>
+        <div class="reviews-grid">
+          <blockquote
+            class="review"
+            cite="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=eca95uafw7f6y38v9kn81f3cdg"
+          >
+            <a
+              class="review-link"
+              href="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=eca95uafw7f6y38v9kn81f3cdg"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Открыть отзыв Надежды В. в Яндекс Картах"
+            >
+              <p class="review-stars" aria-label="Оценка 5 из 5">★★★★★</p>
+              <p>
+                Заезжала на шиномонтаж и балансировку. Всё сделали аккуратно, ушла вибрация на
+                скорости. Приняли вовремя, объяснили по состоянию колёс, ничего лишнего не пытались
+                продать.
+              </p>
+              <footer>
+                <cite>Надежда В.</cite>
+                <span>25 июня · Яндекс Карты</span>
+              </footer>
+            </a>
+          </blockquote>
+          <blockquote
+            class="review"
+            cite="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=8u5w515g95jtry7qkqr1kteb84"
+          >
+            <a
+              class="review-link"
+              href="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=8u5w515g95jtry7qkqr1kteb84"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Открыть отзыв Вики в Яндекс Картах"
+            >
+              <p class="review-stars" aria-label="Оценка 5 из 5">★★★★★</p>
+              <p>
+                Обращалась с проблемой по тормозам. Посмотрели, показали износ колодок, без
+                навязывания лишнего ремонта. Работу сделали аккуратно и в срок — скрип ушёл,
+                объясняют человеческим языком.
+              </p>
+              <footer>
+                <cite>Вика</cite>
+                <span>25 июня · Яндекс Карты</span>
+              </footer>
+            </a>
+          </blockquote>
+          <blockquote
+            class="review"
+            cite="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=x7hxynx9a2ecpk5wap333kawf0"
+          >
+            <a
+              class="review-link"
+              href="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=x7hxynx9a2ecpk5wap333kawf0"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Открыть отзыв Артёма Ванюка в Яндекс Картах"
+            >
+              <p class="review-stars" aria-label="Оценка 5 из 5">★★★★★</p>
+              <p>
+                После отказа двух сервисов, включая официального дилера, здесь взялись и решили
+                проблему. Ответили на вопросы, всё объяснили — видно, что знают своё дело.
+              </p>
+              <footer>
+                <cite>Артём Ванюк</cite>
+                <span>19 июня 2025 · Яндекс Карты</span>
+              </footer>
+            </a>
+          </blockquote>
+          <blockquote
+            class="review"
+            cite="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=xrry0rkhxm9mhytq0je0tmjmhm"
+          >
+            <a
+              class="review-link"
+              href="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=xrry0rkhxm9mhytq0je0tmjmhm"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Открыть отзыв Максима Буденкова в Яндекс Картах"
+            >
+              <p class="review-stars" aria-label="Оценка 5 из 5">★★★★★</p>
+              <p>
+                Быстро и качественно обслужили автомобиль. Специалисты ответственные, лишних услуг
+                не навязывают. Стоимость адекватная — буду обращаться ещё.
+              </p>
+              <footer>
+                <cite>Максим Буденков</cite>
+                <span>5 мая 2025 · Яндекс Карты</span>
+              </footer>
+            </a>
+          </blockquote>
+          <blockquote
+            class="review"
+            cite="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=wjhfwqqn2c35729kg9n9qp3y4m"
+          >
+            <a
+              class="review-link"
+              href="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=wjhfwqqn2c35729kg9n9qp3y4m"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Открыть отзыв Гены Т. в Яндекс Картах"
+            >
+              <p class="review-stars" aria-label="Оценка 5 из 5">★★★★★</p>
+              <p>
+                Отличный сервис. Вежливый персонал. Ремонт и обслуживание качественно и быстро.
+                Приемлемые цены.
+              </p>
+              <footer>
+                <cite>Гена Т.</cite>
+                <span>3 сентября · Яндекс Карты</span>
+              </footer>
+            </a>
+          </blockquote>
+          <blockquote
+            class="review"
+            cite="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=4e4eccny5gde3wtuzc5p8hzbbw"
+          >
+            <a
+              class="review-link"
+              href="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/?reviews%5BpublicId%5D=4e4eccny5gde3wtuzc5p8hzbbw"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Открыть отзыв Дмитрия Позднякова в Яндекс Картах"
+            >
+              <p class="review-stars" aria-label="Оценка 5 из 5">★★★★★</p>
+              <p>
+                Живу в Сосново, но по серьёзным проблемам езжу только сюда. Подход к клиенту и
+                компетентный разговор механиков располагают. Приехал вечером без записи —
+                задержались, чтобы отдать машину в тот же день.
+              </p>
+              <footer>
+                <cite>Дмитрий Поздняков</cite>
+                <span>7 января 2025 · Яндекс Карты</span>
+              </footer>
+            </a>
+          </blockquote>
+        </div>
+        <p class="reviews-more">
+          <a
+            class="btn btn-ghost"
+            href="https://yandex.ru/maps/org/tls_servis/56676741029/reviews/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Все отзывы на Яндекс Картах</a
+          >
+        </p>
+      </section>
+
+      <section id="to" class="section">
         <header class="section-head">
           <p class="eyebrow">Техническое обслуживание</p>
           <h2>Регламент ТО</h2>
@@ -231,11 +571,11 @@
           <p class="eyebrow">Запись на сайте</p>
           <h2>Оставьте заявку на визит</h2>
           <p class="section-lead">
-            Заполните форму — мы перезвоним, подтвердим время и ответим на вопросы по работам.
-            Если выбранное окно окажется занято, предложим ближайшее свободное.
+            Заполните форму — мы перезвоним, подтвердим время и ответим на вопросы по работам. Если
+            выбранное окно окажется занято, предложим ближайшее свободное.
           </p>
           <ul class="booking-points">
-            <li>Выберите направление: ремонт, ТО или диагностика</li>
+            <li>Выберите направление: ремонт, ТО, диагностика или специфические работы</li>
             <li>Конкретную услугу можно не указывать — уточним по телефону</li>
             <li>Укажите удобные дату и время визита</li>
             <li>Если слот занят, при звонке предложим другое время</li>
@@ -269,6 +609,13 @@
                 <span>
                   <strong>Диагностика</strong>
                   <em>Электроника, ходовая, тормоза</em>
+                </span>
+              </label>
+              <label class="kind-card">
+                <input type="radio" name="kind" value="special" />
+                <span>
+                  <strong>Специфические работы</strong>
+                  <em>AVS, AHC, KDSS, гибриды</em>
                 </span>
               </label>
             </div>
@@ -348,6 +695,7 @@
                 <optgroup label="Диагностика">
                   <option>Диагностика электронных систем</option>
                   <option>Диагностика ходовой и тормозов</option>
+                  <option>Ремонт, адаптация и программирование электронных блоков</option>
                 </optgroup>
                 <optgroup label="Слесарно-механический ремонт">
                   <option>Двигатель / ГБЦ</option>
@@ -366,10 +714,15 @@
                   <option>Сезонное хранение шин</option>
                   <option>Развал-схождение</option>
                 </optgroup>
+                <optgroup label="Специфические работы">
+                  <option>Пневмоподвеска AVS — диагностика, калибровка и ремонт</option>
+                  <option>Гидроподвеска AHC — диагностика и ремонт</option>
+                  <option>KDSS — диагностика и ремонт</option>
+                  <option>Ремонт гибридных систем Toyota / Lexus / Subaru</option>
+                </optgroup>
                 <optgroup label="Дополнительно">
                   <option>Кондиционер и антибактериальная обработка</option>
                   <option>Установка дополнительного оборудования</option>
-                  <option>Предпродажная подготовка</option>
                   <option>Другое / опишу в комментарии</option>
                 </optgroup>
               </select>
@@ -413,13 +766,7 @@
             </label>
             <label class="hp-field" aria-hidden="true">
               Сайт компании
-              <input
-                name="company_url"
-                type="text"
-                tabindex="-1"
-                autocomplete="off"
-                value=""
-              />
+              <input name="company_url" type="text" tabindex="-1" autocomplete="off" value="" />
             </label>
             <label class="wide">
               Комментарий

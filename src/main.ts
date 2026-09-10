@@ -12,7 +12,7 @@ import "@fontsource/manrope/700.css";
 import { COOKIE_CONSENT_KEY, OPERATOR } from "./operator";
 import { createCookiePreferences, parseCookiePreferences, type CookiePreferences } from "./cookies";
 import { initReveal, initScrollUi } from "./motion";
-import { lookupBookings, submitBooking } from "./api";
+import { fetchHealth, lookupBookings, submitBooking } from "./api";
 import { loadBookings, removeBooking, saveBookings } from "./storage";
 import {
   SLOTS,
@@ -40,6 +40,8 @@ const REVEAL_TARGETS = [
   ".form",
   ".contacts-panel",
   ".map-wrap",
+  ".gallery-shot",
+  ".review",
 ] as const;
 
 function qs<T extends HTMLElement>(sel: string, root: ParentNode = document): T {
@@ -234,29 +236,33 @@ async function syncAppts(): Promise<void> {
   }
 
   try {
-    const remote = await lookupBookings(
-      local.map((item) => ({ id: item.id, phone: item.phone })),
-    );
+    const remote = await lookupBookings(local.map((item) => ({ id: item.id, phone: item.phone })));
+    if (!remote.bookings.length) {
+      const health = await fetchHealth().catch(() => null);
+      if (health && !health.postgres) {
+        renderAppts(local);
+        return;
+      }
+    }
     const byId = new Map(remote.bookings.map((item) => [item.id, item]));
-    const synced: Booking[] = local
-      .map((item) => {
-        const live = byId.get(item.id);
-        if (!live) return null;
-        return {
-          ...item,
-          kind: live.kind,
-          brand: live.brand,
-          model: live.model,
-          service: live.service,
-          date: live.date,
-          time: live.time,
-          name: live.name,
-          phone: live.phone,
-          status: live.status,
-          consent: true,
-        };
-      })
-      .filter((item): item is Booking => item != null);
+    const synced: Booking[] = [];
+    for (const item of local) {
+      const live = byId.get(item.id);
+      if (!live) continue;
+      synced.push({
+        ...item,
+        kind: live.kind,
+        brand: live.brand,
+        model: live.model,
+        service: live.service,
+        date: live.date,
+        time: live.time,
+        name: live.name,
+        phone: live.phone,
+        status: live.status,
+        consent: true,
+      });
+    }
 
     saveBookings(synced);
     renderAppts(synced);
@@ -405,6 +411,7 @@ function initBookingForm(): void {
       const kindRepair = form.querySelector<HTMLInputElement>('input[name="kind"][value="repair"]');
       if (kindRepair) kindRepair.checked = true;
       fillTimes(timeSelect);
+      phoneInput.value = "+7";
     } catch (error) {
       errorEl.textContent =
         error instanceof Error
@@ -430,10 +437,40 @@ function initLegalNav(): void {
   });
 }
 
+function initServiceTabs(): void {
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>(".service-tab[data-tab]")];
+  if (tabs.length < 2) return;
+
+  const activate = (key: string) => {
+    for (const tab of tabs) {
+      const on = tab.dataset.tab === key;
+      tab.classList.toggle("is-active", on);
+      tab.setAttribute("aria-selected", on ? "true" : "false");
+      const panel = document.getElementById(tab.getAttribute("aria-controls") || "");
+      if (!panel) continue;
+      panel.classList.toggle("is-active", on);
+      panel.hidden = !on;
+    }
+  };
+
+  for (const tab of tabs) {
+    tab.addEventListener("click", () => activate(tab.dataset.tab || "general"));
+  }
+
+  // Deep-link: #service-special opens the special tab
+  const openSpecial = location.hash === "#service-special" || location.hash === "#panel-special";
+  if (openSpecial) activate("special");
+
+  document.querySelectorAll('a[href="#service-special"]').forEach((link) => {
+    link.addEventListener("click", () => activate("special"));
+  });
+}
+
 initCookieBanner();
 initBookingForm();
 initAppts();
 void syncAppts();
 initLegalNav();
+initServiceTabs();
 initScrollUi();
 initReveal(REVEAL_TARGETS);

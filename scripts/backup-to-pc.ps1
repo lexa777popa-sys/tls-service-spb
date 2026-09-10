@@ -3,7 +3,7 @@
 # Или в терминале: powershell -ExecutionPolicy Bypass -File .\scripts\backup-to-pc.ps1
 
 param(
-  [string]$SiteUrl = "https://tls-service-spb.onrender.com",
+  [string]$SiteUrl = "https://tls-service-spb-dv05.onrender.com",
   [string]$Login = "admin",
   [string]$Password = "admin123",
   [string]$OutDir = "$env:USERPROFILE\Documents\TLS-Service-backups"

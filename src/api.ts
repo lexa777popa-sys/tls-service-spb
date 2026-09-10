@@ -44,7 +44,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data;
 }
 
-export function fetchHealth(): Promise<{ ok: boolean; postgres?: boolean; bookings?: number }> {
+export function fetchHealth(): Promise<{
+  ok: boolean;
+  postgres?: boolean;
+  databaseUrlConfigured?: boolean;
+  ephemeral?: boolean;
+  bookings?: number;
+}> {
   return request("/api/health");
 }
 

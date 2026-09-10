@@ -1,4 +1,4 @@
-export type VisitKind = "repair" | "to" | "diag";
+export type VisitKind = "repair" | "to" | "diag" | "special";
 
 export type BookingInput = {
   kind: string;
@@ -130,6 +130,7 @@ export function kindLabel(kind: string): string {
     repair: "ремонт",
     to: "ТО",
     diag: "диагностику",
+    special: "специфические работы",
   };
   return map[kind] ?? "визит";
 }
@@ -140,6 +141,7 @@ export function kindTitle(kind: string): string {
     repair: "Ремонт",
     to: "Техническое обслуживание",
     diag: "Диагностика",
+    special: "Специфические работы",
   };
   return map[kind] ?? "Визит";
 }
@@ -153,18 +155,10 @@ export function bookingDoneMessage(
 }
 
 /** Успешная проверка отдаёт дату в ISO — её и сохраняем. */
-export type BookingField =
-  | "consent"
-  | "brand"
-  | "model"
-  | "date"
-  | "time"
-  | "name"
-  | "phone";
+export type BookingField = "consent" | "brand" | "model" | "date" | "time" | "name" | "phone";
 
 export type BookingCheck =
-  | { ok: true; date: string }
-  | { ok: false; message: string; field: BookingField };
+  { ok: true; date: string } | { ok: false; message: string; field: BookingField };
 
 export function validateBooking(data: BookingInput, now = new Date()): BookingCheck {
   if (!data.brand?.trim()) {

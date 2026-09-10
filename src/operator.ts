@@ -13,6 +13,7 @@ export const OPERATOR = {
   metro: "Выборгская",
   mapUrl: "https://yandex.ru/maps/-/CTHxFI9v",
   mapWidget: "https://yandex.ru/map-widget/v1/?ol=biz&oid=56676741029&z=16&l=map",
+  reviewsUrl: "https://yandex.ru/maps/org/tls_servis/56676741029/reviews/",
   pdnContact: "для обращений субъектов персональных данных",
 } as const;
 

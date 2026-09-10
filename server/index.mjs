@@ -9,11 +9,18 @@ import pg from "pg";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const DIST_DIR = join(ROOT, "dist");
+
+const envFile = join(ROOT, ".env");
+if (existsSync(envFile) && typeof process.loadEnvFile === "function") {
+  process.loadEnvFile(envFile);
+}
+
 /** На Render с диском: DATA_DIR=/var/data. Локально — папка data в проекте (это уже ваш ПК). */
 const DATA_DIR = process.env.DATA_DIR || join(ROOT, "data");
 const DB_PATH = join(DATA_DIR, "queue.json");
 const BACKUP_DIR = join(DATA_DIR, "backups");
 const DATABASE_URL = String(process.env.DATABASE_URL || "").trim();
+const ON_RENDER = Boolean(process.env.RENDER);
 const MAX_BACKUPS = 40;
 const PORT = Number(process.env.PORT || 8788);
 const HOST = process.env.HOST || (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
@@ -109,14 +116,13 @@ function upsertStaffUser(login, name, role, password) {
 
 async function initPostgres() {
   if (!DATABASE_URL) return;
-  pgPool = new pg.Pool({
+  const pool = new pg.Pool({
     connectionString: DATABASE_URL,
-    ssl: /localhost|127\.0\.0\.1/i.test(DATABASE_URL)
-      ? false
-      : { rejectUnauthorized: false },
+    ssl: /localhost|127\.0\.0\.1/i.test(DATABASE_URL) ? false : { rejectUnauthorized: false },
   });
-  // Только заявки — без паролей сотрудников и сессий.
-  await pgPool.query(`
+  try {
+    // Только заявки — без паролей сотрудников и сессий.
+    await pool.query(`
     CREATE TABLE IF NOT EXISTS bookings (
       id INTEGER PRIMARY KEY,
       data JSONB NOT NULL,
@@ -128,7 +134,13 @@ async function initPostgres() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
-  console.log("Postgres persistence enabled (bookings only)");
+    pgPool = pool;
+    console.log("Postgres persistence enabled (bookings only)");
+  } catch (error) {
+    console.error("Postgres init failed:", error);
+    await pool.end().catch(() => {});
+    pgPool = null;
+  }
 }
 
 function normalizeDbState(parsed) {
@@ -636,7 +648,6 @@ function pruneAttempts(list, windowMs) {
 }
 
 function checkBookingRateLimit(ip, phoneRaw) {
-  const now = Date.now();
   const hour = 60 * 60 * 1000;
   const day = 24 * hour;
   const phone = normalizePhoneDigits(phoneRaw);
@@ -646,7 +657,10 @@ function checkBookingRateLimit(ip, phoneRaw) {
   bookingAttemptsByIp.set(ip, ipDay);
 
   if (ipHour.length >= 3) {
-    return { ok: false, error: "Слишком много заявок с вашего адреса. Попробуйте позже или позвоните нам." };
+    return {
+      ok: false,
+      error: "Слишком много заявок с вашего адреса. Попробуйте позже или позвоните нам.",
+    };
   }
   if (ipDay.length >= 8) {
     return { ok: false, error: "Достигнут дневной лимит заявок с вашего адреса. Позвоните нам." };
@@ -1016,6 +1030,7 @@ const server = createServer(async (req, res) => {
         ok: true,
         postgres: Boolean(pgPool),
         databaseUrlConfigured: Boolean(DATABASE_URL),
+        ephemeral: ON_RENDER && !pgPool,
         bookings: db.bookings.filter((b) => !b.trashedAt).length,
       });
       return;
